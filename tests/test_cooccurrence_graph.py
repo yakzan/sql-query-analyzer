@@ -36,3 +36,21 @@ def test_disjoint_join_groups_form_two_clusters():
     members = sorted(sorted(c) for c in communities)
     assert ["core.categories", "core.products"] in members
     assert ["core.customers", "sales.orders"] in members
+
+
+def test_cluster_repeated_ctes_omits_unique_ctes():
+    sql = """
+    with tmp as (
+        select o.customer_id from sales.orders o
+    )
+    select c.customer_id
+    from core.customers c
+    join tmp t on c.customer_id = t.customer_id
+    """
+    recs = records_for(sql)
+    tables = sorted({t for r in recs for t in r.tables})
+    cooc = cooccurrence.table_cooccurrence(recs)
+    joins = cooccurrence.join_edges(recs)
+    communities = graph.detect_communities(graph.build_graph(tables, cooc, joins))
+    clusters = graph.build_clusters(recs, communities, joins)
+    assert all(row["repeated_ctes"] == "" for row in clusters)

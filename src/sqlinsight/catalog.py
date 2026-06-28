@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from collections import defaultdict
 
+from .extract import extract_record
 from .models import QueryRecord
+from .parse import ParsedStatement
 
 RESOLVED_STATUSES = {"resolved", "unqualified_resolved", "catalog_resolved"}
 
@@ -18,10 +20,29 @@ def build_catalog(records: list[QueryRecord]) -> dict[str, set[str]]:
     return dict(catalog)
 
 
-def refine(records: list[QueryRecord], catalog: dict[str, set[str]]) -> dict[str, int]:
+def refine(
+    records: list[QueryRecord],
+    catalog: dict[str, set[str]],
+    statements: list[ParsedStatement] | None = None,
+) -> dict[str, int]:
     """Second pass: attribute ambiguous columns when the inferred catalog
     points to exactly one candidate table present in the same query."""
     stats = {"catalog_resolved": 0, "still_ambiguous": 0}
+    if statements is not None:
+        by_key = {(s.file, s.stmt_index): s for s in statements}
+        for i, rec in enumerate(records):
+            stmt = by_key.get((rec.file, rec.stmt_index))
+            if stmt is None:
+                continue
+            updated = extract_record(stmt, catalog=catalog)
+            records[i] = updated
+            for col in updated.columns:
+                if col.status == "catalog_resolved":
+                    stats["catalog_resolved"] += 1
+                elif col.status == "ambiguous":
+                    stats["still_ambiguous"] += 1
+        return stats
+
     for rec in records:
         for col in rec.columns:
             if col.status != "ambiguous":

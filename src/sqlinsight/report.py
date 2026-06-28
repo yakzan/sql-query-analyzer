@@ -250,7 +250,7 @@ def write_report(
 
     env = Environment(
         loader=FileSystemLoader(str(TEMPLATE_DIR)),
-        autoescape=select_autoescape(["html"]),
+        autoescape=select_autoescape(["html", "html.j2"]),
     )
     html = env.get_template("report.html.j2").render(
         source=source, metrics=metrics, sections=sections,

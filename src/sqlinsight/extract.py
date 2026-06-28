@@ -82,6 +82,22 @@ def _extract_joins(
     return joins, join_col_ids
 
 
+def _apply_catalog_resolution(
+    resolution: dict[int, ColumnRef],
+    real_tables: set[str],
+    catalog: dict[str, set[str]],
+) -> None:
+    for ref in resolution.values():
+        if ref.status != "ambiguous":
+            continue
+        candidates = [
+            t for t in sorted(real_tables) if ref.name.lower() in catalog.get(t, set())
+        ]
+        if len(candidates) == 1:
+            ref.table = candidates[0]
+            ref.status = "catalog_resolved"
+
+
 def _assign_context(
     expression: exp.Expression,
     resolution: dict[int, ColumnRef],
@@ -119,7 +135,8 @@ def _cte_tables(cte: exp.CTE, cte_names: set[str]) -> list[str]:
     for t in cte.this.find_all(exp.Table):
         name = _table_name(t)
         short = name.split(".")[-1]
-        if short in cte_names:
+        is_qualified = t.args.get("db") is not None or t.args.get("catalog") is not None
+        if not is_qualified and short in cte_names:
             continue
         tables.add(name)
     return sorted(tables)
@@ -161,13 +178,18 @@ def _extract_ctes(
     return infos
 
 
-def extract_record(stmt: ParsedStatement) -> QueryRecord:
+def extract_record(
+    stmt: ParsedStatement,
+    catalog: dict[str, set[str]] | None = None,
+) -> QueryRecord:
     if stmt.expression is None:
         return QueryRecord(stmt.file, stmt.stmt_index, False, stmt.dialect, stmt.error)
 
     record = QueryRecord(stmt.file, stmt.stmt_index, True, stmt.dialect)
     try:
         resolution, real_tables = _resolve_columns(stmt.expression)
+        if catalog is not None:
+            _apply_catalog_resolution(resolution, real_tables, catalog)
         joins, join_col_ids = _extract_joins(stmt.expression, resolution)
         _assign_context(stmt.expression, resolution, join_col_ids)
 
@@ -190,5 +212,8 @@ def extract_record(stmt: ParsedStatement) -> QueryRecord:
     return record
 
 
-def extract_all(statements: list[ParsedStatement]) -> list[QueryRecord]:
-    return [extract_record(s) for s in statements]
+def extract_all(
+    statements: list[ParsedStatement],
+    catalog: dict[str, set[str]] | None = None,
+) -> list[QueryRecord]:
+    return [extract_record(s, catalog=catalog) for s in statements]

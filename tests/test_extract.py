@@ -45,3 +45,12 @@ def test_cte_is_not_counted_as_physical_table():
     rec = record_for(sql)
     assert rec.tables == ["sales.orders"]
     assert [c.name for c in rec.ctes] == ["recent"]
+
+
+def test_cte_with_same_short_name_keeps_qualified_source_table():
+    sql = """
+    with orders as (select * from sales.orders)
+    select * from orders
+    """
+    rec = record_for(sql)
+    assert rec.ctes[0].tables == ["sales.orders"]

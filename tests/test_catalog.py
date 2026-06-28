@@ -1,6 +1,10 @@
+import sqlglot
+
 from conftest import records_for
 
 from sqlinsight import catalog
+from sqlinsight.extract import extract_all
+from sqlinsight.parse import PRIMARY_DIALECT, ParsedStatement
 
 TEACH = "select o.amount, o.order_id from sales.orders o"
 AMBIGUOUS = (
@@ -30,3 +34,23 @@ def test_refine_resolves_ambiguous_via_inferred_catalog():
     resolved = next(c for c in amb.columns if c.name == "amount")
     assert resolved.status == "catalog_resolved"
     assert resolved.table == "sales.orders"
+
+
+def test_refine_with_statements_rebuilds_join_edges_after_resolution():
+    teach = "select o.order_id from sales.orders o"
+    join_sql = (
+        "select * from sales.orders o "
+        "join core.customers c on order_id = c.customer_id"
+    )
+    statements = [
+        ParsedStatement("q0.sql", 0, PRIMARY_DIALECT, sqlglot.parse_one(teach, read=PRIMARY_DIALECT)),
+        ParsedStatement("q1.sql", 1, PRIMARY_DIALECT, sqlglot.parse_one(join_sql, read=PRIMARY_DIALECT)),
+    ]
+    records = extract_all(statements)
+    cat = catalog.build_catalog(records)
+
+    stats = catalog.refine(records, cat, statements)
+    assert stats["catalog_resolved"] == 1
+    assert records[1].joins[0].canonical() == (
+        "core.customers", "sales.orders", "customer_id", "order_id",
+    )

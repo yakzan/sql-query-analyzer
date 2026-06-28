@@ -25,7 +25,7 @@ def run(source: str, outdir: str) -> int:
 
     print("[3/6] inferring catalog + resolving ambiguous columns ...")
     cat = catalog.build_catalog(records)
-    refine_stats = catalog.refine(records, cat)
+    refine_stats = catalog.refine(records, cat, statements)
     print(f"      catalog-resolved {refine_stats['catalog_resolved']} column(s); "
           f"{refine_stats['still_ambiguous']} still ambiguous")
 

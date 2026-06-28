@@ -6,6 +6,7 @@ from pathlib import Path
 
 import sqlglot
 from sqlglot import exp
+from sqlglot.tokens import TokenType, Tokenizer
 
 PRIMARY_DIALECT = "redshift"
 FALLBACK_DIALECT = "postgres"
@@ -27,29 +28,49 @@ def load_sql_files(root: str | Path) -> list[Path]:
     return sorted(p for p in root.rglob("*.sql") if p.is_file())
 
 
-def _parse_with(sql: str, dialect: str) -> list[exp.Expression]:
-    return [e for e in sqlglot.parse(sql, read=dialect) if e is not None]
+def _split_statements(raw: str) -> list[str]:
+    try:
+        tokens = Tokenizer().tokenize(raw)
+    except Exception:  # noqa: BLE001 - tolerate tokenizer failures
+        chunk = raw.strip()
+        return [chunk] if chunk else []
+
+    statements: list[str] = []
+    start = 0
+    for token in tokens:
+        if token.token_type is TokenType.SEMICOLON:
+            chunk = raw[start:token.start].strip()
+            if chunk:
+                statements.append(chunk)
+            start = token.end + 1
+
+    tail = raw[start:].strip()
+    if tail:
+        statements.append(tail)
+    return statements
 
 
 def parse_file(path: Path) -> list[ParsedStatement]:
     raw = path.read_text(encoding="utf-8", errors="replace")
     rel = str(path)
-    for dialect in (PRIMARY_DIALECT, FALLBACK_DIALECT):
+
+    statements = _split_statements(raw)
+    out: list[ParsedStatement] = []
+    for i, statement in enumerate(statements):
         try:
-            expressions = _parse_with(raw, dialect)
-        except Exception:  # noqa: BLE001 - sqlglot raises various parse errors
+            expr = sqlglot.parse_one(statement, read=PRIMARY_DIALECT)
+            out.append(ParsedStatement(rel, i, PRIMARY_DIALECT, expr))
             continue
-        return [
-            ParsedStatement(rel, i, dialect, e)
-            for i, e in enumerate(expressions)
-        ]
-    # Both dialects failed: record one failing statement with the error message.
-    try:
-        _parse_with(raw, PRIMARY_DIALECT)
-        err = "unknown parse failure"
-    except Exception as exc:  # noqa: BLE001
-        err = f"{type(exc).__name__}: {exc}"
-    return [ParsedStatement(rel, 0, PRIMARY_DIALECT, None, err)]
+        except Exception as primary_exc:  # noqa: BLE001
+            primary_err = f"{type(primary_exc).__name__}: {primary_exc}"
+
+        try:
+            expr = sqlglot.parse_one(statement, read=FALLBACK_DIALECT)
+            out.append(ParsedStatement(rel, i, FALLBACK_DIALECT, expr))
+        except Exception:  # noqa: BLE001
+            out.append(ParsedStatement(rel, i, PRIMARY_DIALECT, None, primary_err))
+
+    return out
 
 
 def parse_all(root: str | Path) -> list[ParsedStatement]:
