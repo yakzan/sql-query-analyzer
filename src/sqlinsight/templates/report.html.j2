@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sqlinsight report</title>
+<style>
+  :root { --fg:#1b2733; --muted:#5b6b7b; --line:#dfe6ee; --accent:#2563eb; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+         margin: 0; color: var(--fg); background: #f6f8fb; }
+  header { background: #0f172a; color: #fff; padding: 20px 28px; }
+  header h1 { margin: 0 0 4px; font-size: 20px; }
+  header p { margin: 0; color: #9fb3c8; font-size: 13px; }
+  main { padding: 24px 28px 60px; max-width: 1200px; margin: 0 auto; }
+  .cards { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 10px;
+          padding: 12px 16px; min-width: 150px; }
+  .card .v { font-size: 22px; font-weight: 700; }
+  .card .l { font-size: 12px; color: var(--muted); text-transform: uppercase;
+             letter-spacing: .04em; }
+  .links { margin: 14px 0 8px; }
+  .links a { color: var(--accent); text-decoration: none; font-weight: 600; }
+  section { background: #fff; border: 1px solid var(--line); border-radius: 12px;
+            padding: 16px 18px; margin-top: 20px; }
+  section h2 { margin: 0 0 10px; font-size: 16px; }
+  .hint { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+  input.search { width: 100%; padding: 8px 10px; border: 1px solid var(--line);
+                 border-radius: 8px; margin-bottom: 10px; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line);
+           vertical-align: top; }
+  th { cursor: pointer; background: #f0f4f9; position: sticky; top: 0; user-select: none; }
+  th:hover { background: #e4ecf6; }
+  td.sql { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+           white-space: pre-wrap; color: #334; max-width: 560px; }
+  .wrap { max-height: 460px; overflow: auto; border: 1px solid var(--line);
+          border-radius: 8px; }
+  .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>sqlinsight &mdash; SQL co-occurrence &amp; clustering report</h1>
+  <p>Source: {{ source }} &nbsp;|&nbsp; generated deterministically &nbsp;|&nbsp; decision support, not auto-modeling</p>
+</header>
+<main>
+  <div class="cards">
+    {% for label, value in metrics %}
+    <div class="card"><div class="v">{{ value }}</div><div class="l">{{ label }}</div></div>
+    {% endfor %}
+  </div>
+  <div class="links">Interactive join graph: <a href="graph.html">graph.html</a></div>
+
+  {% for sec in sections %}
+  <section>
+    <h2>{{ sec.title }}</h2>
+    {% if sec.hint %}<p class="hint">{{ sec.hint }}</p>{% endif %}
+    {% if sec.rows %}
+    <input class="search" placeholder="filter rows..." oninput="filterTable(this)">
+    <div class="wrap">
+    <table>
+      <thead><tr>{% for c in sec.columns %}<th onclick="sortTable(this)">{{ c }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for row in sec.rows %}
+        <tr>{% for cell in row %}<td class="{{ 'sql' if sec.columns[loop.index0] in sec.sql_cols else '' }}">{{ cell }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="empty">No rows.</div>
+    {% endif %}
+  </section>
+  {% endfor %}
+</main>
+<script>
+function filterTable(input) {
+  var q = input.value.toLowerCase();
+  var rows = input.parentNode.querySelectorAll('tbody tr');
+  rows.forEach(function (r) {
+    r.style.display = r.innerText.toLowerCase().indexOf(q) > -1 ? '' : 'none';
+  });
+}
+function sortTable(th) {
+  var table = th.closest('table');
+  var idx = Array.prototype.indexOf.call(th.parentNode.children, th);
+  var tbody = table.querySelector('tbody');
+  var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+  var asc = th.dataset.asc !== 'true';
+  th.dataset.asc = asc;
+  rows.sort(function (a, b) {
+    var x = a.children[idx].innerText.trim();
+    var y = b.children[idx].innerText.trim();
+    var nx = parseFloat(x), ny = parseFloat(y);
+    if (!isNaN(nx) && !isNaN(ny)) return asc ? nx - ny : ny - nx;
+    return asc ? x.localeCompare(y) : y.localeCompare(x);
+  });
+  rows.forEach(function (r) { tbody.appendChild(r); });
+}
+</script>
+</body>
+</html>
