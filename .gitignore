@@ -14,3 +14,4 @@ output/
 
 # macOS
 .DS_Store
+.vscode/
