@@ -10,11 +10,19 @@ from .extract import extract_all
 from .parse import parse_all
 
 
-def run(source: str, outdir: str) -> int:
+def run(source: str, outdir: str, catalog_path: str | None = None) -> int:
     src_path = Path(source)
     if not src_path.exists():
         print(f"error: source path not found: {source}", file=sys.stderr)
         return 1
+
+    provided = None
+    if catalog_path:
+        try:
+            provided = catalog.load_provided(catalog_path)
+        except (OSError, ValueError) as exc:
+            print(f"error: cannot load catalog {catalog_path}: {exc}", file=sys.stderr)
+            return 1
 
     print(f"[1/6] parsing SQL under {source} ...")
     statements = parse_all(src_path)
@@ -25,7 +33,15 @@ def run(source: str, outdir: str) -> int:
 
     print("[3/6] inferring catalog + resolving ambiguous columns ...")
     cat = catalog.build_catalog(records)
-    refine_stats = catalog.refine(records, cat, statements)
+    star_tables = None
+    catalog_source = "inferred"
+    if provided is not None:
+        cat = catalog.merge(cat, provided)
+        star_tables = set(provided)
+        catalog_source = f"provided ({len(provided)} tables) + inferred"
+    refine_stats = catalog.refine(records, cat, statements, star_tables=star_tables)
+    refine_stats["catalog_source"] = catalog_source
+    print(f"      catalog: {catalog_source}")
     print(f"      catalog-resolved {refine_stats['catalog_resolved']} column(s); "
           f"{refine_stats['still_ambiguous']} still ambiguous")
 
@@ -59,8 +75,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("source", help="directory or file containing .sql files")
     parser.add_argument("-o", "--out", default="output", help="output directory")
+    parser.add_argument(
+        "--catalog",
+        help="optional JSON file with the real schema catalog:"
+             ' {"schema.table": ["col", ...]}. Wins over the inferred catalog'
+             " per table and enables SELECT * expansion.",
+    )
     args = parser.parse_args(argv)
-    return run(args.source, args.out)
+    return run(args.source, args.out, catalog_path=args.catalog)
 
 
 if __name__ == "__main__":

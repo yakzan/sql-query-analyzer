@@ -15,10 +15,36 @@ def _table_name(table: exp.Table) -> str:
     return exp.table_name(table).lower()
 
 
-def _resolve_columns(expression: exp.Expression) -> tuple[dict[int, ColumnRef], set[str]]:
-    """Map each column node id to a resolved ColumnRef using scope analysis."""
+def _star_targets(
+    select: exp.Expression, table_sources: dict[str, str]
+) -> list[str]:
+    """Physical tables whose star projections appear in this scope's SELECT."""
+    if not isinstance(select, exp.Select):
+        return []
+    targets: list[str] = []
+    for proj in select.expressions:
+        if isinstance(proj, exp.Star):
+            targets.extend(table_sources.values())
+        elif isinstance(proj, exp.Column) and isinstance(proj.this, exp.Star):
+            if proj.table in table_sources:
+                targets.append(table_sources[proj.table])
+    return targets
+
+
+def _resolve_columns(
+    expression: exp.Expression,
+    catalog: dict[str, set[str]] | None = None,
+    star_tables: set[str] | None = None,
+) -> tuple[dict[int, ColumnRef], set[str], list[ColumnRef]]:
+    """Map each column node id to a resolved ColumnRef using scope analysis.
+
+    Stars are only expanded for star_tables (backed by a provided catalog);
+    the inferred catalog is incomplete by construction, so expanding from it
+    would overclaim.
+    """
     resolution: dict[int, ColumnRef] = {}
     real_tables: set[str] = set()
+    star_refs: list[ColumnRef] = []
 
     try:
         scopes = traverse_scope(expression)
@@ -58,7 +84,15 @@ def _resolve_columns(expression: exp.Expression) -> tuple[dict[int, ColumnRef], 
             else:
                 resolution[id(col)] = ColumnRef(None, col.name, "ambiguous", "select")
 
-    return resolution, real_tables
+        if catalog and star_tables:
+            for t in _star_targets(scope.expression, table_sources):
+                if t in star_tables and t in catalog:
+                    star_refs.extend(
+                        ColumnRef(t, name, "star_expanded", "select")
+                        for name in sorted(catalog[t])
+                    )
+
+    return resolution, real_tables, star_refs
 
 
 def _extract_joins(
@@ -207,6 +241,7 @@ def _classify(root: exp.Expression) -> tuple[str, str, exp.Expression | None]:
 def extract_record(
     stmt: ParsedStatement,
     catalog: dict[str, set[str]] | None = None,
+    star_tables: set[str] | None = None,
 ) -> QueryRecord:
     if stmt.expression is None:
         return QueryRecord(stmt.file, stmt.stmt_index, False, stmt.dialect, stmt.error)
@@ -217,14 +252,16 @@ def extract_record(
         return record
 
     try:
-        resolution, real_tables = _resolve_columns(analyzed)
+        resolution, real_tables, star_refs = _resolve_columns(
+            analyzed, catalog=catalog, star_tables=star_tables
+        )
         if catalog is not None:
             _apply_catalog_resolution(resolution, real_tables, catalog)
         joins, join_col_ids = _extract_joins(analyzed, resolution)
         _assign_context(analyzed, resolution, join_col_ids)
 
         record.tables = sorted(real_tables)
-        record.columns = list(resolution.values())
+        record.columns = list(resolution.values()) + star_refs
         record.joins = joins
         record.group_columns = [
             r for r in resolution.values() if r.context == "group"

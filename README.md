@@ -44,7 +44,15 @@ uv run sqlinsight examples -o output
 
 # Scope to one set
 uv run sqlinsight examples/hard -o output
+
+# With the real warehouse schema (optional): resolves far more columns and
+# expands SELECT *. Format: {"schema.table": ["col", ...]}
+uv run sqlinsight path/to/sql_files -o output --catalog schema.json
 ```
+
+Without `--catalog`, a table->columns map is inferred from qualified
+references across the corpus (offline fallback). When provided, the real
+catalog wins per table.
 
 Then open `output/report.html`.
 
@@ -96,7 +104,7 @@ Each limitation maps to a planned fix in `ROADMAP.md`:
 - Composite join keys appear as separate edges, inflating graph degree (step 4a).
 - Clustering is driven mostly by co-occurrence, a weaker signal than join topology;
   one wide query can pull unrelated tables into a cluster (step 4b).
-- `SELECT *` columns stay opaque without a real schema catalog (step 3).
+- `SELECT *` columns stay opaque unless a real schema catalog is provided via `--catalog` (step 3).
 - Non-SELECT statements (`INSERT INTO ... SELECT`, CTAS, DDL) yield thin records
   rather than being properly extracted or explicitly skipped (step 2).
 - Validated on a small example corpus; behavior at the ~100-file target scale

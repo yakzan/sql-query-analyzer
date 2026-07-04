@@ -220,6 +220,7 @@ def write_report(
         ("SQL files", len({r.file for r in records})),
         ("Statements", len(records)),
         ("Statement kinds", kinds_summary),
+        ("Catalog source", refine_stats.get("catalog_source", "inferred")),
         ("Parse coverage", f"{100 * parsed_ok / total:.0f}%"),
         ("Distinct tables", distinct_tables),
         ("Columns resolved", f"{100 * resolved / (len(all_cols) or 1):.0f}%"),

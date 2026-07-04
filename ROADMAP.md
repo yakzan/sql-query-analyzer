@@ -49,17 +49,18 @@ visibly skipped; co-occurrence contains only read relationships.
 
 ## Step 3 - Optional real catalog (`--catalog`)
 
-**Status:** not started
+**Status:** done (2026-07-04); `--catalog-dsn` helper deliberately deferred
+(would add a db-driver dependency; the JSON format is trivial to produce)
 **Why:** inferred table->columns is a workaround; a real catalog removes most
 ambiguity and makes `SELECT *` transparent.
 
-- [ ] Accept `--catalog path.json` (`{"schema.table": ["col", ...]}`) in `cli.py`
-- [ ] Loader + validation in `catalog.py`; provided catalog wins per table, inferred stays as fallback
-- [ ] `SELECT *` expansion using known columns (new status `star_expanded`)
-- [ ] Ambiguous-column resolution against real catalog (same exactly-one-candidate rule)
-- [ ] Report metric: `catalog source: inferred | provided (+ merged)`
-- [ ] (Optional) `--catalog-dsn` helper that dumps `information_schema.columns` to the JSON format
-- [ ] Tests: provided-catalog resolution, star expansion, precedence over inferred
+- [x] Accept `--catalog path.json` (`{"schema.table": ["col", ...]}`) in `cli.py`
+- [x] Loader + validation in `catalog.py`; provided catalog wins per table, inferred stays as fallback
+- [x] `SELECT *` expansion using known columns (new status `star_expanded`)
+- [x] Ambiguous-column resolution against real catalog (same exactly-one-candidate rule)
+- [x] Report metric: `catalog source: inferred | provided (+ merged)`
+- [ ] (Optional, deferred) `--catalog-dsn` helper that dumps `information_schema.columns` to the JSON format
+- [x] Tests: provided-catalog resolution, star expansion, precedence over inferred
 
 **Acceptance:** running with a catalog measurably reduces ambiguous columns on
 `examples/` and stars are expanded; offline inferred mode unchanged.
