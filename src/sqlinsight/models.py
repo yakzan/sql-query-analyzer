@@ -45,6 +45,8 @@ class QueryRecord:
     parse_ok: bool
     dialect: str = ""
     error: str = ""
+    kind: str = "select"  # select | insert_select | ctas | skipped_ddl
+    target_table: str = ""  # write target for insert_select / ctas
     tables: list[str] = field(default_factory=list)
     columns: list[ColumnRef] = field(default_factory=list)
     joins: list[JoinEdge] = field(default_factory=list)

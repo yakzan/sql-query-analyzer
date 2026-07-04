@@ -30,17 +30,17 @@ output changes show up as golden diffs.
 
 ## Step 2 - Explicit non-SELECT statement handling
 
-**Status:** not started
+**Status:** done (2026-07-04)
 **Why:** `INSERT INTO ... SELECT` / CTAS / DDL currently yield thin records
 and can quietly distort co-occurrence.
 
-- [ ] Add `kind` (and `target_table`) fields to `QueryRecord` in `models.py`
-- [ ] Classify statement root in `extract_record`: select/union -> analyze as now
-- [ ] `INSERT` / CTAS: record target table separately, extract the embedded SELECT normally
-- [ ] Keep the write target out of `tables` (a write is not a co-occurrence relationship)
-- [ ] Pure DDL/DML without SELECT: mark `kind="skipped_ddl"`, exclude from co-occurrence and graph
-- [ ] Surface skipped/statement-kind counts in the report so nothing disappears silently
-- [ ] Tests: one each for `INSERT INTO ... SELECT`, `CREATE TABLE AS`, plain DDL
+- [x] Add `kind` (and `target_table`) fields to `QueryRecord` in `models.py`
+- [x] Classify statement root in `extract_record`: select/union -> analyze as now
+- [x] `INSERT` / CTAS: record target table separately, extract the embedded SELECT normally
+- [x] Keep the write target out of `tables` (a write is not a co-occurrence relationship)
+- [x] Pure DDL/DML without SELECT: mark `kind="skipped_ddl"`, exclude from co-occurrence and graph
+- [x] Surface skipped/statement-kind counts in the report so nothing disappears silently
+- [x] Tests: one each for `INSERT INTO ... SELECT`, `CREATE TABLE AS`, plain DDL
 
 **Acceptance:** non-SELECT statements are either meaningfully extracted or
 visibly skipped; co-occurrence contains only read relationships.

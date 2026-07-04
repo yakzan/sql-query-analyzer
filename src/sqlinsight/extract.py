@@ -178,6 +178,32 @@ def _extract_ctes(
     return infos
 
 
+def _classify(root: exp.Expression) -> tuple[str, str, exp.Expression | None]:
+    """Classify a statement: (kind, target_table, expression to analyze).
+
+    Write targets are recorded separately and kept out of read co-occurrence;
+    statements with no embedded query are explicitly skipped, not half-read.
+    Insert/Create are analyzed at the root: traverse_scope resolves their CTEs
+    correctly and never lists the write target as a source.
+    """
+    if isinstance(root, (exp.Select, exp.SetOperation)):
+        return "select", "", root
+
+    if isinstance(root, (exp.Insert, exp.Create)):
+        target_node = root.this
+        target = ""
+        if target_node is not None:
+            t = target_node if isinstance(target_node, exp.Table) else target_node.find(exp.Table)
+            if t is not None:
+                target = _table_name(t)
+        if isinstance(root.expression, (exp.Select, exp.SetOperation)):
+            kind = "insert_select" if isinstance(root, exp.Insert) else "ctas"
+            return kind, target, root
+        return "skipped_ddl", target, None
+
+    return "skipped_ddl", "", None
+
+
 def extract_record(
     stmt: ParsedStatement,
     catalog: dict[str, set[str]] | None = None,
@@ -186,12 +212,16 @@ def extract_record(
         return QueryRecord(stmt.file, stmt.stmt_index, False, stmt.dialect, stmt.error)
 
     record = QueryRecord(stmt.file, stmt.stmt_index, True, stmt.dialect)
+    record.kind, record.target_table, analyzed = _classify(stmt.expression)
+    if analyzed is None:
+        return record
+
     try:
-        resolution, real_tables = _resolve_columns(stmt.expression)
+        resolution, real_tables = _resolve_columns(analyzed)
         if catalog is not None:
             _apply_catalog_resolution(resolution, real_tables, catalog)
-        joins, join_col_ids = _extract_joins(stmt.expression, resolution)
-        _assign_context(stmt.expression, resolution, join_col_ids)
+        joins, join_col_ids = _extract_joins(analyzed, resolution)
+        _assign_context(analyzed, resolution, join_col_ids)
 
         record.tables = sorted(real_tables)
         record.columns = list(resolution.values())
@@ -202,11 +232,11 @@ def extract_record(
         record.aggregations = sorted(
             {
                 f"{agg.sql_name().lower()}({agg.this.sql().lower()})"
-                for agg in stmt.expression.find_all(exp.AggFunc)
+                for agg in analyzed.find_all(exp.AggFunc)
                 if agg.this is not None
             }
         )
-        record.ctes = _extract_ctes(stmt.expression, stmt.file, stmt.stmt_index)
+        record.ctes = _extract_ctes(analyzed, stmt.file, stmt.stmt_index)
     except Exception as exc:  # noqa: BLE001 - keep partial result, never crash run
         record.error = f"extract: {type(exc).__name__}: {exc}"
     return record

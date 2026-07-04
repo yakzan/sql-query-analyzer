@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import sqlite3
+from collections import Counter
 from pathlib import Path
 
 import networkx as nx
@@ -35,7 +36,8 @@ def _write_sqlite(path: Path, records: list[QueryRecord], stat_tables: dict) -> 
     cur = con.cursor()
     cur.execute(
         "CREATE TABLE queries(file TEXT, stmt_index INT, parse_ok INT, dialect TEXT,"
-        " error TEXT, n_tables INT, n_joins INT, n_ctes INT)"
+        " error TEXT, kind TEXT, target_table TEXT, n_tables INT, n_joins INT,"
+        " n_ctes INT)"
     )
     cur.execute("CREATE TABLE query_tables(file TEXT, stmt_index INT, table_name TEXT)")
     cur.execute(
@@ -52,9 +54,10 @@ def _write_sqlite(path: Path, records: list[QueryRecord], stat_tables: dict) -> 
     )
     for rec in records:
         cur.execute(
-            "INSERT INTO queries VALUES(?,?,?,?,?,?,?,?)",
+            "INSERT INTO queries VALUES(?,?,?,?,?,?,?,?,?,?)",
             (rec.file, rec.stmt_index, int(rec.parse_ok), rec.dialect, rec.error,
-             len(rec.tables), len(rec.joins), len(rec.ctes)),
+             rec.kind, rec.target_table, len(rec.tables), len(rec.joins),
+             len(rec.ctes)),
         )
         cur.executemany(
             "INSERT INTO query_tables VALUES(?,?,?)",
@@ -210,9 +213,13 @@ def write_report(
     ambiguous = sum(1 for c in all_cols if c.status == "ambiguous")
     distinct_tables = len({t for r in records for t in r.tables})
 
+    kind_counts = sorted(Counter(r.kind for r in records if r.parse_ok).items())
+    kinds_summary = ", ".join(f"{k}: {n}" for k, n in kind_counts) or "none"
+
     metrics = [
         ("SQL files", len({r.file for r in records})),
         ("Statements", len(records)),
+        ("Statement kinds", kinds_summary),
         ("Parse coverage", f"{100 * parsed_ok / total:.0f}%"),
         ("Distinct tables", distinct_tables),
         ("Columns resolved", f"{100 * resolved / (len(all_cols) or 1):.0f}%"),
