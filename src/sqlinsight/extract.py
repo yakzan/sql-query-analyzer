@@ -164,9 +164,9 @@ def _output_columns(select: exp.Expression) -> list[str]:
     return out
 
 
-def _cte_tables(cte: exp.CTE, cte_names: set[str]) -> list[str]:
+def _unit_tables(node: exp.Expression, cte_names: set[str]) -> list[str]:
     tables: set[str] = set()
-    for t in cte.this.find_all(exp.Table):
+    for t in node.find_all(exp.Table):
         name = _table_name(t)
         short = name.split(".")[-1]
         is_qualified = t.args.get("db") is not None or t.args.get("catalog") is not None
@@ -174,6 +174,10 @@ def _cte_tables(cte: exp.CTE, cte_names: set[str]) -> list[str]:
             continue
         tables.add(name)
     return sorted(tables)
+
+
+def _cte_tables(cte: exp.CTE, cte_names: set[str]) -> list[str]:
+    return _unit_tables(cte.this, cte_names)
 
 
 def _normalize_sql(node: exp.Expression) -> str:
@@ -238,6 +242,45 @@ def _classify(root: exp.Expression) -> tuple[str, str, exp.Expression | None]:
     return "skipped_ddl", "", None
 
 
+MIN_SUBQUERY_TOKENS = 25
+
+
+def _extract_subqueries(
+    expression: exp.Expression, file: str, stmt_index: int
+) -> list[CteInfo]:
+    """Inline subqueries as overlap units. Trivial ones (no physical table, or
+    under MIN_SUBQUERY_TOKENS whitespace tokens) would only add noise."""
+    cte_names = {c.alias.lower() for c in expression.find_all(exp.CTE)}
+    infos: list[CteInfo] = []
+    for sub in expression.find_all(exp.Subquery):
+        inner = sub.this
+        if not isinstance(inner, (exp.Select, exp.SetOperation)):
+            continue
+        tables = _unit_tables(inner, cte_names)
+        if not tables:
+            continue
+        norm = _normalize_sql(inner)
+        if len(norm.split()) < MIN_SUBQUERY_TOKENS:
+            continue
+        out_cols = _output_columns(inner)
+        infos.append(
+            CteInfo(
+                name=(sub.alias_or_name or "(inline)").lower(),
+                file=file,
+                stmt_index=stmt_index,
+                tables=tables,
+                output_columns=out_cols,
+                normalized_sql=norm,
+                exact_hash=hashlib.sha1(norm.encode("utf-8")).hexdigest(),
+                signature=json.dumps(
+                    {"tables": tables, "out": sorted(out_cols)}, sort_keys=True
+                ),
+                unit_type="subquery",
+            )
+        )
+    return infos
+
+
 def extract_record(
     stmt: ParsedStatement,
     catalog: dict[str, set[str]] | None = None,
@@ -274,6 +317,7 @@ def extract_record(
             }
         )
         record.ctes = _extract_ctes(analyzed, stmt.file, stmt.stmt_index)
+        record.subqueries = _extract_subqueries(analyzed, stmt.file, stmt.stmt_index)
     except Exception as exc:  # noqa: BLE001 - keep partial result, never crash run
         record.error = f"extract: {type(exc).__name__}: {exc}"
     return record

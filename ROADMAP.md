@@ -100,21 +100,27 @@ unrelated tables; output still byte-stable across runs.
 
 ## Step 5 - Token-level near-duplicate overlap (MinHash), incl. inline subqueries
 
-**Status:** not started
+**Status:** done (2026-07-04), with one measured deviation: pure 5-token
+shingle Jaccard at 0.7 missed real small-CTE near-dupes (adding one WHERE to a
+12-token CTE drops shingle Jaccard to ~0.33). Similarity is instead a blend,
+`0.5 * shingle-Jaccard + 0.5 * token-set-Jaccard`, threshold 0.45; measured:
+planted near-dupes score 0.46-0.53, unrelated queries ~0.09. LSH prunes
+candidates permissively (~0.42); the exact blended Jaccard decides.
 **Why:** overlap is pitched as the highest-ROI output but only fingerprints
 named CTEs with a crude (tables, output_columns) signature.
 
-- [ ] Candidate units: named CTEs + `exp.Subquery` with >= 1 physical table and >= ~25 tokens
-- [ ] Normalize AST: lowercase identifiers, strip comments, literals -> `?` placeholder
-- [ ] k-shingles over token stream (k = 5)
-- [ ] MinHash signatures (128 perms, fixed seed - determinism preserved)
-- [ ] LSH bucketing tuned for ~0.7 similarity; exact Jaccard on candidate pairs; keep `>= 0.7`
-- [ ] Union-find over kept pairs -> duplicate groups
-- [ ] Exact-hash fast path stays; label groups `exact` vs `near_dupe` with min pairwise similarity
-- [ ] `repeated_logic.csv`: add `similarity` and `unit_type` (cte | subquery) columns
-- [ ] Retire (or demote to hint) the old structural signature
-- [ ] Rank groups by `occurrences * similarity` descending
-- [ ] Tests: planted exact dupe, planted ~0.8 near-dupe, inline subquery detection, determinism
+- [x] Candidate units: named CTEs + `exp.Subquery` with >= 1 physical table and >= ~25 tokens
+- [x] Normalize: lowercase identifiers, strip comments, literals -> `?` placeholder
+- [x] k-shingles over token stream (k = 5) + token sets (blended, see above)
+- [x] MinHash signatures (128 perms, fixed seed - determinism preserved)
+- [x] LSH bucketing (32 bands x 4 rows, ~0.42) as candidate filter; exact blended Jaccard >= 0.45 decides
+- [x] Union-find over kept pairs -> duplicate groups (index-anchored, order-independent)
+- [x] Exact-hash fast path stays; label groups `exact` vs `near_dupe` with min pairwise similarity
+- [x] `repeated_logic.csv`: add `similarity` and `unit_types` (cte | subquery) columns
+- [x] Retire the old structural signature (field kept on CteInfo for the sqlite inventory only)
+- [x] Rank groups by `occurrences * similarity` descending
+- [x] Tests: planted exact dupe, planted near-dupe, changed-literal near-dupe,
+      inline subquery detection, tiny-subquery filter, order independence
 
 **Acceptance:** near-dupes with renamed CTEs / inline subqueries are found,
 ranked by consolidation ROI, fully deterministic.

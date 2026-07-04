@@ -186,8 +186,8 @@ def write_report(
         "column_cooccurrence.csv": (["column_a", "column_b", "count"], col_cooc),
         "join_edges.csv": (["left_table", "right_table", "left_col", "right_col", "count"], join_rows),
         "repeated_logic.csv": (
-            ["match_type", "key", "occurrences", "distinct_files", "cte_names",
-             "files", "tables", "sample_sql"], repeated),
+            ["match_type", "key", "occurrences", "distinct_files", "similarity",
+             "unit_types", "unit_names", "files", "tables", "sample_sql"], repeated),
         "clusters.csv": (
             ["cluster_id", "size", "tables", "internal_join_keys",
              "supporting_files", "repeated_ctes", "note"], clusters),
@@ -235,11 +235,13 @@ def write_report(
                         ["cluster_id", "size", "tables", "internal_join_keys",
                          "supporting_files", "repeated_ctes", "note"], clusters),
         _table_section("Repeated logic (overlap)",
-                        "CTE/subquery blocks reused across files. Highest-ROI candidates "
-                        "for shared models. 'exact' = identical SQL; 'structural' = same "
-                        "tables/outputs, differing SQL.",
+                        "CTE/subquery blocks reused across files, ranked by "
+                        "occurrences x similarity (consolidation ROI). 'exact' = "
+                        "identical SQL; 'near_dupe' = token-level similar "
+                        "(literals masked, blended shingle/token Jaccard).",
                         ["match_type", "key", "occurrences", "distinct_files",
-                         "cte_names", "files", "tables", "sample_sql"], repeated,
+                         "similarity", "unit_types", "unit_names", "files",
+                         "tables", "sample_sql"], repeated,
                         sql_cols=("sample_sql",)),
         _table_section("Join edges",
                         "How often each table pair is joined, and on which keys.",

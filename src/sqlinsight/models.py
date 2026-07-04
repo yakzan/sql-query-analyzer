@@ -36,6 +36,7 @@ class CteInfo:
     normalized_sql: str
     exact_hash: str
     signature: str
+    unit_type: str = "cte"  # cte | subquery
 
 
 @dataclass
@@ -53,3 +54,4 @@ class QueryRecord:
     group_columns: list[ColumnRef] = field(default_factory=list)
     aggregations: list[str] = field(default_factory=list)
     ctes: list[CteInfo] = field(default_factory=list)
+    subqueries: list[CteInfo] = field(default_factory=list)  # inline units for overlap

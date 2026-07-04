@@ -1,12 +1,10 @@
 """Build the table relationship graph and derive cluster suggestions."""
 from __future__ import annotations
 
-from collections import defaultdict
-
 import networkx as nx
 
 from .models import QueryRecord
-from .overlap import collect_ctes
+from .overlap import collect_ctes, repeated_unit_keys
 
 
 COOC_ALPHA = 0.1
@@ -61,23 +59,7 @@ def build_clusters(
     join_rows: list[tuple[str, str, str, str, int]],
 ) -> list[dict]:
     ctes = collect_ctes(records)
-    by_hash: dict[str, list] = defaultdict(list)
-    by_sig: dict[str, list] = defaultdict(list)
-    for c in ctes:
-        by_hash[c.exact_hash].append(c)
-        by_sig[c.signature].append(c)
-
-    repeated_keys: set[tuple[str, int, str, str, str]] = set()
-    for group in by_hash.values():
-        if len(group) >= 2:
-            repeated_keys.update(
-                (c.file, c.stmt_index, c.name, c.exact_hash, c.signature) for c in group
-            )
-    for group in by_sig.values():
-        if len(group) >= 2 and len({c.exact_hash for c in group}) >= 2:
-            repeated_keys.update(
-                (c.file, c.stmt_index, c.name, c.exact_hash, c.signature) for c in group
-            )
+    repeated_keys = repeated_unit_keys(records)
 
     joined_tables = {t for lt, rt, _lc, _rc, _n in join_rows for t in (lt, rt)}
 
@@ -108,8 +90,7 @@ def build_clusters(
                 for c in ctes
                 if c.tables
                 and set(c.tables) <= member_set
-                and (c.file, c.stmt_index, c.name, c.exact_hash, c.signature)
-                in repeated_keys
+                and (c.file, c.stmt_index, c.name, c.exact_hash) in repeated_keys
             }
         )
         rows.append(

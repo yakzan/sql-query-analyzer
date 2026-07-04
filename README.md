@@ -18,7 +18,7 @@ For a corpus of `.sql` files it emits (into `output/`):
 - `inventory.sqlite` - normalized records (queries, tables, columns, joins, ctes) + all stat tables
 - `table_frequency.csv`, `table_cooccurrence.csv`, `column_cooccurrence.csv`
 - `join_edges.csv` - table pairs and the keys they join on, with frequency
-- `repeated_logic.csv` - reused CTE/subquery blocks (`exact` = identical SQL, `structural` = same tables/outputs, differing SQL)
+- `repeated_logic.csv` - reused CTE/inline-subquery blocks (`exact` = identical SQL, `near_dupe` = token-level similar with literals masked), ranked by occurrences x similarity
 - `clusters.csv` - communities of tightly-coupled tables
 - `parse_errors.log`
 
@@ -99,10 +99,7 @@ UPDATE_GOLDENS=1 uv run pytest -q
 
 Each limitation maps to a planned fix in `ROADMAP.md`:
 
-- Only named CTEs are fingerprinted for overlap; inline subqueries are not yet (step 5).
-- Near-duplicate detection is signature-based (tables + output columns), not token-level (step 5).
 - `SELECT *` columns stay opaque unless a real schema catalog is provided via `--catalog` (step 3).
-- Non-SELECT statements (`INSERT INTO ... SELECT`, CTAS, DDL) yield thin records
-  rather than being properly extracted or explicitly skipped (step 2).
+- Inline subqueries under ~25 tokens are not fingerprinted for overlap (deliberate noise filter).
 - Validated on a small example corpus; behavior at the ~100-file target scale
-  is not yet exercised by tests (steps 1, 7).
+  is not yet exercised by tests (step 7).
