@@ -67,9 +67,28 @@ Then open `output/report.html`.
 uv run pytest -q
 ```
 
+## Architecture & roadmap
+
+- `docs/architecture.html` - self-contained interactive explainer of the
+  pipeline: click each stage for its algorithm and a worked example traced
+  through the whole flow. Works offline; just open it in a browser.
+- `ROADMAP.md` - the agreed improvement plan as checkable steps (snapshot
+  tests, join-topology clustering, MinHash overlap, real-catalog support,
+  scale validation). One step per commit; check tasks off as they land.
+- `docs/design-notes.md` - the open design questions behind the roadmap and
+  the tradeoffs that were weighed.
+
 ## Known limitations
 
-- Only named CTEs are fingerprinted for overlap (inline subqueries are not yet).
-- Near-duplicate detection is signature-based (tables + output columns), not token-level.
-- Composite join keys appear as separate edges.
-- `SELECT *` columns stay opaque without a real schema catalog.
+Each limitation maps to a planned fix in `ROADMAP.md`:
+
+- Only named CTEs are fingerprinted for overlap; inline subqueries are not yet (step 5).
+- Near-duplicate detection is signature-based (tables + output columns), not token-level (step 5).
+- Composite join keys appear as separate edges, inflating graph degree (step 4a).
+- Clustering is driven mostly by co-occurrence, a weaker signal than join topology;
+  one wide query can pull unrelated tables into a cluster (step 4b).
+- `SELECT *` columns stay opaque without a real schema catalog (step 3).
+- Non-SELECT statements (`INSERT INTO ... SELECT`, CTAS, DDL) yield thin records
+  rather than being properly extracted or explicitly skipped (step 2).
+- Validated on a small example corpus; behavior at the ~100-file target scale
+  is not yet exercised by tests (steps 1, 7).

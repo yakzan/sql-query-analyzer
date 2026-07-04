@@ -39,6 +39,26 @@ models.py  -> shared dataclasses (ColumnRef, JoinEdge, CteInfo, QueryRecord)
 
 Data flows one direction; `models.py` is the shared vocabulary.
 
+For a guided, interactive walkthrough of each stage (algorithm + a worked
+example traced end to end), open `docs/architecture.html` in a browser. Keep
+it in sync when pipeline behavior changes.
+
+## Roadmap workflow
+
+`ROADMAP.md` is the agreed improvement plan, ordered so each step de-risks the
+next (snapshot/determinism tests first, then signal-quality changes, then
+scale validation).
+
+- Work **one roadmap step per session/commit series**; do not interleave steps.
+- Check off tasks (`- [ ]` -> `- [x]`) and update the step's **Status** line as
+  you go; a step is done only when its acceptance criteria hold.
+- Steps that change user-visible output (4, 5, 6) must land **after** the
+  snapshot harness from step 1 exists, so the change shows up as a reviewable
+  golden diff.
+- `docs/design-notes.md` records the open questions and tradeoffs behind the
+  roadmap. When new design tensions appear, add them there rather than
+  expanding the roadmap ad hoc; graduate entries per that file's protocol.
+
 ## Non-negotiable conventions
 
 - **Determinism.** Output must be stable across runs. Sort all collections
