@@ -14,9 +14,8 @@
     --accent: #2563eb;
     --accent-soft: #eff4ff;
     --ok: #16a34a;
+    --ok-soft: #e7f6ec;
     --warn: #d97706;
-    --plan: #7c3aed;
-    --plan-soft: #f3eeff;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; }
@@ -33,9 +32,7 @@
   /* pipeline */
   .toggle-row { display: flex; align-items: center; gap: 10px; margin: 14px 0 18px; }
   .toggle-row label { cursor: pointer; user-select: none; font-size: 14px; }
-  .pipeline {
-    display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px;
-  }
+  .pipeline { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; }
   .stage {
     position: relative; flex: 1 1 118px; min-width: 118px;
     background: var(--panel); border: 2px solid var(--line); border-radius: 12px;
@@ -51,16 +48,13 @@
   .stage.active .num { color: var(--accent); background: var(--accent-soft); }
   .stage .name { font-weight: 700; font-size: 14px; }
   .stage .file { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
-  .stage .plan-badge {
+  .stage .ship-badge {
     display: none; position: absolute; top: -9px; right: -6px;
-    background: var(--plan); color: #fff; font-size: 10px; font-weight: 700;
+    background: var(--ok); color: #fff; font-size: 10px; font-weight: 700;
     border-radius: 999px; padding: 2px 7px;
   }
-  body.show-plan .stage .plan-badge { display: inline-block; }
-  .arrow {
-    align-self: center; color: #94a3b8; font-size: 18px; flex: 0 0 auto;
-    animation: none;
-  }
+  body.show-ship .stage .ship-badge { display: inline-block; }
+  .arrow { align-self: center; color: #94a3b8; font-size: 18px; flex: 0 0 auto; }
   body.flowing .arrow { animation: pulse 1.2s infinite; }
   @keyframes pulse { 0%,100% { opacity: .35; } 50% { opacity: 1; } }
 
@@ -97,7 +91,7 @@
     background: #0f172a; color: #e2e8f0; border-radius: 10px;
     padding: 14px 16px; overflow-x: auto; margin: 8px 0 14px;
   }
-  pre .c { color: #7dd3fc; } /* highlight */
+  pre .c { color: #7dd3fc; }
   .io { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
   .io .box {
     flex: 1 1 240px; background: var(--bg); border: 1px solid var(--line);
@@ -105,35 +99,37 @@
   }
   .io .box b { display: block; font-size: 11px; text-transform: uppercase;
     letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
-  .plan-note {
-    background: var(--plan-soft); border: 1px solid #ddd0f7; border-radius: 10px;
+  .ship-note {
+    background: var(--ok-soft); border: 1px solid #cdeeda; border-radius: 10px;
     padding: 12px 14px; font-size: 13.5px; margin: 4px 0 10px;
   }
-  .plan-note b { color: var(--plan); }
+  .ship-note b { color: var(--ok); }
   .pill {
     display: inline-block; font-size: 11px; font-weight: 700; border-radius: 999px;
     padding: 1px 8px; margin-right: 6px; vertical-align: 1px;
   }
-  .pill.status { background: #e7f6ec; color: var(--ok); }
+  .pill.status { background: var(--ok-soft); color: var(--ok); }
   .pill.amb { background: #fdf0e0; color: var(--warn); }
-  .pill.plan { background: var(--plan-soft); color: var(--plan); }
+  .pill.inf { background: #eef2ff; color: #4f46e5; }
 
   table.mini {
     border-collapse: collapse; font-size: 12.5px; margin: 6px 0 14px; width: 100%;
   }
   table.mini th, table.mini td {
     border: 1px solid var(--line); padding: 5px 9px; text-align: left;
-    font-family: var(--mono);
+    font-family: var(--mono); vertical-align: top;
   }
   table.mini th { background: var(--bg); font-family: inherit; font-size: 11.5px; }
+  table.mini td.plain { font-family: inherit; }
 
-  /* invariants strip */
-  .invariants { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
-  .inv {
+  .invariants, .cards { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+  .inv, .card2 {
     background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-    padding: 10px 14px; flex: 1 1 180px; font-size: 13px;
+    padding: 10px 14px; flex: 1 1 200px; font-size: 13px;
   }
-  .inv b { display: block; margin-bottom: 2px; }
+  .inv b, .card2 b { display: block; margin-bottom: 2px; }
+  .card2 code { font-family: var(--mono); font-size: 11.5px; background: var(--bg);
+    border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
   footer { margin-top: 40px; color: var(--muted); font-size: 12.5px; }
   @media (max-width: 760px) {
     .pipeline { flex-direction: column; }
@@ -146,12 +142,14 @@
 
   <h1>sqlinsight architecture</h1>
   <p class="sub">A deterministic pipeline: raw <code>.sql</code> files in, decision-support artifacts out.
-     Click any stage to see what it does, the algorithm, and a worked example.
-     Data flows strictly left to right; <code>models.py</code> is the shared vocabulary.</p>
+     This reflects the <b>implemented</b> system after all 8 roadmap steps shipped
+     (see <code>ROADMAP.md</code>). Click any stage for its algorithm, a worked example traced on
+     real code, and what changed during the roadmap and why. Data flows strictly left to right;
+     <code>models.py</code> is the shared vocabulary.</p>
 
   <div class="toggle-row">
-    <input type="checkbox" id="planToggle">
-    <label for="planToggle">Show planned improvements (from <code>ROADMAP.md</code>)</label>
+    <input type="checkbox" id="shipToggle">
+    <label for="shipToggle">Show which roadmap steps landed in each stage</label>
   </div>
 
   <div class="pipeline" id="pipeline"></div>
@@ -165,17 +163,17 @@
       <button class="tab active" data-tab="overview">Overview</button>
       <button class="tab" data-tab="algorithm">Algorithm</button>
       <button class="tab" data-tab="example">Worked example</button>
-      <button class="tab" data-tab="roadmap">Planned changes</button>
+      <button class="tab" data-tab="changes">What changed &amp; why</button>
     </div>
     <div class="tab-body active" id="tb-overview"></div>
     <div class="tab-body" id="tb-algorithm"></div>
     <div class="tab-body" id="tb-example"></div>
-    <div class="tab-body" id="tb-roadmap"></div>
+    <div class="tab-body" id="tb-changes"></div>
   </div>
 
   <h2>The running example</h2>
-  <p class="hint">Every stage's "Worked example" tab traces this same query, so you can follow one
-     piece of SQL through the whole pipeline.</p>
+  <p class="hint">Every stage's "Worked example" tab traces this same query. All traces below were
+     generated by running the actual code, not written by hand.</p>
 <pre>WITH recent_orders AS (
     SELECT o.order_id, o.customer_id, o.amount
     FROM orders o
@@ -186,26 +184,67 @@ FROM recent_orders r
 JOIN customers c ON r.customer_id = c.customer_id
 GROUP BY c.region;</pre>
 
+  <h2>Column status vocabulary</h2>
+  <p class="hint">Every column reference carries exactly one status. The set grew during the
+     roadmap; the rule stayed the same: confidence is always labeled, never implied.</p>
+  <table class="mini">
+    <tr><th>status</th><th>meaning</th><th>assigned by</th></tr>
+    <tr><td>resolved</td><td class="plain">Qualified reference mapped to a physical table via scope analysis</td><td class="plain">extract</td></tr>
+    <tr><td>unqualified_resolved</td><td class="plain">Unqualified, but the scope has exactly one real table and no derived sources</td><td class="plain">extract</td></tr>
+    <tr><td>derived</td><td class="plain">Belongs to a CTE/subquery alias; its lineage is traced in that scope instead</td><td class="plain">extract</td></tr>
+    <tr><td>ambiguous</td><td class="plain">Multiple candidates; deliberately not guessed</td><td class="plain">extract</td></tr>
+    <tr><td>catalog_resolved</td><td class="plain">Second pass: exactly one candidate table in scope has this column in the catalog</td><td class="plain">catalog refine</td></tr>
+    <tr><td>star_expanded</td><td class="plain">SELECT * expanded from a <i>provided</i> catalog (never from the inferred one)</td><td class="plain">extract, with --catalog</td></tr>
+    <tr><td>join_inferred</td><td class="plain">Ambiguous join side resolved from its partner's evidence; labeled, excludable</td><td class="plain">extract joins</td></tr>
+  </table>
+
+  <h2>Verification layers</h2>
+  <p class="hint">The roadmap's first and biggest lesson: guarantees that are not tested are wishes.
+     Four layers now hold the pipeline in place (60 tests).</p>
+  <div class="cards">
+    <div class="card2"><b>Golden snapshots</b><code>tests/golden/</code> pins <code>clusters.csv</code>
+      and <code>repeated_logic.csv</code>. Intended changes are refreshed deliberately with
+      <code>UPDATE_GOLDENS=1</code> and reviewed as diffs. Both signal-quality changes (steps 4, 5)
+      arrived exactly this way.</div>
+    <div class="card2"><b>Determinism, proven</b>Two full runs must be byte-identical: every CSV,
+      both HTML files, sqlite compared via ordered dumps. Also asserted at scale on the synthetic
+      corpus.</div>
+    <div class="card2"><b>Scale gate</b><code>tests/gen_corpus.py</code> (seed 42) generates 80
+      files / 60 tables with planted truth: 6 exact dupes, 5 near-dupes, composite keys, wide
+      queries, inserts. Asserts recall, runtime &lt; 30s (measured &lt; 1s), graph.html &lt; 3MB,
+      no community &gt; 60% of joined tables. <code>uv run pytest -m slow</code></div>
+    <div class="card2"><b>Behavior tests</b>Golden unit tests on small SQL snippets per feature:
+      kinds, star expansion, join inference guards, composite collapse, near-dupe grouping,
+      order independence.</div>
+  </div>
+
+  <h2>CLI surface</h2>
+<pre>uv run sqlinsight path/to/sql -o output \
+    [--catalog schema.json]   <span class="c"># real warehouse schema; wins per table, enables SELECT * expansion</span>
+    [--resolution 1.0]        <span class="c"># community detection resolution; &gt; 1.0 = more, smaller clusters</span>
+    [--graph-edges 200]       <span class="c"># cap graph.html to top-K join edges; full set stays in join_edges.csv</span></pre>
+
   <h2>Non-negotiable invariants (every stage obeys these)</h2>
   <div class="invariants">
-    <div class="inv"><b>Determinism</b>Same input, byte-identical output. Everything sorted; no randomized algorithms.</div>
+    <div class="inv"><b>Determinism</b>Same input, byte-identical output. Everything sorted; fixed
+      seeds; no randomized algorithms. Now proven by tests, not just intended.</div>
     <div class="inv"><b>Resilience</b>One malformed query never crashes the run. Errors are recorded; partial results kept.</div>
-    <div class="inv"><b>No guessing</b>Columns that cannot be confidently attributed are marked <code>ambiguous</code>, never invented.</div>
-    <div class="inv"><b>Honest framing</b>Clusters are suggestions for a human, not finished dbt models.</div>
+    <div class="inv"><b>No guessing</b>Uncertain attribution is labeled (<code>ambiguous</code>,
+      <code>join_inferred</code>), never silently upgraded.</div>
+    <div class="inv"><b>Honest framing</b>Clusters are suggestions. Unconnected tables say so. Inferred edges are dashed.</div>
     <div class="inv"><b>Offline artifacts</b>All outputs work with no network (pyvis resources inlined).</div>
   </div>
 
-  <footer>Generated for the sqlinsight repo. Companion to <code>ROADMAP.md</code> and
-    <code>docs/design-notes.md</code>. Fully self-contained; no network required.</footer>
+  <footer>Generated for the sqlinsight repo; reflects the implemented pipeline (roadmap steps 1-8
+    complete). Companion to <code>ROADMAP.md</code> and <code>docs/design-notes.md</code>.
+    Fully self-contained; no network required.</footer>
 </div>
 
 <script>
 const STAGES = [
   {
     id: "parse", num: "1", name: "Parse", file: "parse.py",
-    planBadge: "R7",
-    input: "Directory of raw .sql files",
-    output: "list[ParsedStatement] (file, index, dialect, AST or error)",
+    ship: "R7",
     overview: `
       <div class="io">
         <div class="box"><b>Input</b>Directory of raw <code>.sql</code> files (recursed, sorted for determinism)</div>
@@ -226,298 +265,378 @@ const STAGES = [
             and the primary error text. <b>Never raise.</b></li>
       </ol>`,
     example: `
-      <p>The running example is one statement, so the tokenizer split yields a single chunk.
-      Redshift parsing succeeds on the first try:</p>
+      <p>The running example is one statement; Redshift parsing succeeds on the first try:</p>
       <pre>ParsedStatement(
-  file = "examples/simple/customer_orders.sql",
+  file = "customer_orders.sql",
   stmt_index = 0,
   dialect = <span class="c">"redshift"</span>,
-  expression = &lt;sqlglot AST: With(Select(...))&gt;,
+  expression = &lt;sqlglot AST: Select(with=With(...))&gt;,
   error = ""
 )</pre>
       <p>If the file also contained <code>SELECT broken FROM;;</code>, that statement alone would
       carry an error and appear in <code>parse_errors.log</code>; this one would still flow on.</p>`,
-    roadmap: `
-      <div class="plan-note"><b>Roadmap step 7</b> - a seeded ~80-file synthetic corpus will
-      stress parsing at target scale (runtime budget, recall of planted patterns).</div>
-      <p>Also noted in design-notes: parse errors currently carry no line/column position;
-      surfacing sqlglot token positions would ease human triage.</p>`
+    changes: `
+      <div class="ship-note"><b>Step 7 (scale gate)</b> - parsing is now exercised on the seeded
+      80-file synthetic corpus with a runtime budget and a 100% parse-coverage assertion. No code
+      change was needed; the stage held up as designed.</div>
+      <p>Still open (design-notes): parse errors carry no line/column position. Deliberately
+      deferred until real-corpus triage shows it matters.</p>`
   },
   {
     id: "extract", num: "2", name: "Extract", file: "extract.py",
-    planBadge: "R2 R6",
+    ship: "R2 R3 R5 R6",
     overview: `
       <div class="io">
         <div class="box"><b>Input</b><code>list[ParsedStatement]</code> (ASTs)</div>
-        <div class="box"><b>Output</b><code>list[QueryRecord]</code> - tables, columns (with status + context), join edges, CTE fingerprints</div>
+        <div class="box"><b>Output</b><code>list[QueryRecord]</code> - kind, target, tables, columns (status + context), joins (with inference flag), CTE + subquery units</div>
       </div>
-      <p>The heart of the tool. Uses sqlglot <b>scope analysis</b> to answer: which columns belong
-      to which <i>physical</i> table? A scope is one SELECT's namespace; its sources are either real
-      tables or derived ones (CTEs / subqueries). This is how <code>recent_orders</code> is recognized
-      as an alias, not a database table.</p>
-      <p>Every column gets a <b>status</b>
-      (<span class="pill status">resolved</span> <span class="pill status">unqualified_resolved</span>
-      <span class="pill amb">ambiguous</span> derived / catalog_resolved) and a
-      <b>context</b> (select / join / filter / group / aggregate).</p>`,
+      <p>The heart of the tool, and the stage that absorbed the most roadmap work. First the
+      statement is <b>classified</b>: <code>select</code>, <code>insert_select</code>,
+      <code>ctas</code> (analyzed at the root, write target recorded separately), or
+      <code>skipped_ddl</code> (explicitly skipped, surfaced in the report). Then sqlglot
+      <b>scope analysis</b> attributes each column to its physical table - a scope is one
+      SELECT's namespace, which is how <code>recent_orders</code> is recognized as an alias,
+      not a database table.</p>
+      <p>Every column gets one status from the vocabulary table below the pipeline
+      (<span class="pill status">resolved</span> <span class="pill amb">ambiguous</span>
+      <span class="pill inf">join_inferred</span> ...) and a context
+      (select / join / filter / group / aggregate). Overlap <b>units</b> are also collected here:
+      every named CTE, plus inline subqueries reading >= 1 physical table with >= 25 tokens.</p>`,
     algorithm: `
       <ol>
-        <li><code>traverse_scope(ast)</code> - walk every SELECT scope.</li>
-        <li>For each scope, partition sources: <code>exp.Table</code> -> real table;
-            anything else (CTE, subquery) -> derived source.</li>
-        <li>Resolve each column in the scope:
-          <ul>
-            <li>qualified (<code>o.amount</code>) and qualifier maps to a real table -> <b>resolved</b></li>
-            <li>qualifier maps to a derived source -> <b>derived</b> (traced separately in its own scope)</li>
-            <li>unqualified but scope has exactly one real table and no derived sources -> <b>unqualified_resolved</b></li>
-            <li>otherwise -> <b>ambiguous</b> (the no-guessing rule)</li>
-          </ul>
-        </li>
-        <li>Joins: find every <code>a = b</code> where both sides are columns resolved to
-            <i>different</i> tables -> <code>JoinEdge</code>.</li>
-        <li>Context: join columns first, then nearest ancestor
-            (AggFunc -> aggregate, GROUP BY -> group, WHERE -> filter, else select).</li>
-        <li>CTE fingerprints: normalized SQL -> <code>exact_hash</code> (sha1), plus a structural
-            <code>signature</code> = (tables used, output columns).</li>
-        <li>Any exception -> record the error on the <code>QueryRecord</code>, keep partial results.</li>
+        <li><b>Classify:</b> Select/SetOperation -> <code>select</code>; Insert/Create with an
+            embedded query -> <code>insert_select</code>/<code>ctas</code>, target table recorded,
+            analysis runs on the <i>root</i> (traverse_scope resolves their CTEs there and never
+            lists the write target as a source); anything else -> <code>skipped_ddl</code>.</li>
+        <li><b>Resolve columns</b> per scope: qualified -> real table (<code>resolved</code>) or
+            derived source (<code>derived</code>); unqualified -> <code>unqualified_resolved</code>
+            iff exactly one real table and no derived sources, else <code>ambiguous</code>.
+            Per-column scope metadata (tables in scope, derived present?) is kept for join
+            inference.</li>
+        <li><b>Star expansion</b> (only with <code>--catalog</code>): bare <code>*</code> and
+            qualified <code>t.*</code> expand to the table's known columns as
+            <code>star_expanded</code> - only for provided-catalog tables, because the inferred
+            catalog is incomplete by construction and expanding from it would overclaim.</li>
+        <li><b>Catalog resolution</b> (second pass): ambiguous -> <code>catalog_resolved</code>
+            iff exactly one table in scope carries the column.</li>
+        <li><b>Joins:</b> every <code>a = b</code> between columns of different tables. If one
+            side is resolved and the other ambiguous, <b>partner inference</b> may fire (see
+            What changed). Edges carry <code>inference: "" | "partner"</code>.</li>
+        <li><b>Contexts:</b> join columns first, then nearest ancestor (AggFunc / GROUP BY /
+            WHERE / else select).</li>
+        <li><b>Units:</b> CTEs and qualifying inline subqueries are fingerprinted
+            (normalized SQL, sha1 exact hash) for the overlap stage.</li>
+        <li>Any exception -> error recorded on the QueryRecord, partial results kept.</li>
       </ol>`,
     example: `
-      <p>Two scopes are found. Inside the CTE, <code>o</code> maps to real table <code>orders</code>;
-      in the outer query, <code>r</code> is derived (the CTE) and <code>c</code> is real
-      (<code>customers</code>):</p>
-      <pre>tables  = [<span class="c">"customers"</span>, <span class="c">"orders"</span>]        # recent_orders correctly excluded
-
-columns = [
-  (orders.order_id,     resolved,  select),
-  (orders.customer_id,  resolved,  select),
-  (orders.amount,       resolved,  select),
-  (orders.created_at,   resolved,  filter),
-  (customers.region,    resolved,  group),
-  (None: r.amount,      derived,   aggregate),   # flows through the CTE
-  (None: r.customer_id, derived,   join),
-  (customers.customer_id, resolved, join),
+      <p>Actual trace of the running example (<code>kind=select</code>,
+      <code>tables=[customers, orders]</code> - the CTE is correctly excluded):</p>
+      <pre>columns = [
+  (orders.order_id,      resolved,  select),
+  (orders.customer_id,   resolved,  select),
+  (orders.amount,        resolved,  select),
+  (orders.created_at,    resolved,  filter),
+  (customers.region,     resolved,  select),
+  (None: r.amount,       derived,   aggregate),   # flows through the CTE
+  (None: r.customer_id,  derived,   select),
+  (customers.customer_id, resolved, select),
+  (customers.region,     resolved,  group),
 ]
-
-joins = []   # r.customer_id is derived, so this edge is NOT emitted here
+joins = []          <span class="c"># r.customer_id is derived: the scope has a derived source,</span>
+                    <span class="c"># so partner inference correctly refuses to fire</span>
 ctes  = [CteInfo(name="recent_orders", tables=["orders"],
-                 output_columns=["order_id","customer_id","amount"],
-                 exact_hash="3fa9...", signature='{"tables":["orders"],"out":[...]}')]</pre>
-      <p>Note the join is dropped because one side is a CTE column, not a physical table.
-      That conservatism is deliberate; roadmap step 6 revisits it.</p>`,
-    roadmap: `
-      <div class="plan-note"><b>Roadmap step 2</b> - classify statement kind. <code>INSERT INTO ... SELECT</code>
-      and CTAS get their target table recorded separately and the embedded SELECT analyzed;
-      pure DDL is explicitly skipped and reported, instead of producing thin records.</div>
-      <div class="plan-note"><b>Roadmap step 6</b> - partner-informed join resolution: when one side
-      of an equality is resolved and evidence pins the other side to exactly one candidate,
-      emit the edge with a distinct <code>join_inferred</code> status (visible, labeled, excludable).</div>`
+                 output_columns=["order_id","customer_id","amount"], hash=b459d34b...)]
+aggregations = ["sum(r.amount)"]</pre>
+      <p>Contrast with a directly recoverable case - here inference fires and is labeled:</p>
+      <pre>SELECT o.amount FROM orders o JOIN customers c ON order_id = c.customer_id
+-- order_id was ambiguous; customers is the partner; only orders remains:
+joins = [JoinEdge(orders, customers, order_id, customer_id, inference=<span class="c">"partner"</span>)]
+column  (orders.order_id, <span class="c">join_inferred</span>)</pre>
+      <p>And star expansion with a provided catalog for <code>orders</code>:</p>
+      <pre>SELECT * FROM orders   + --catalog {"orders": ["order_id","customer_id","amount"]}
+columns = [(orders.amount, star_expanded), (orders.customer_id, star_expanded),
+           (orders.order_id, star_expanded)]</pre>`,
+    changes: `
+      <div class="ship-note"><b>Step 2 - statement kinds.</b> INSERT/CTAS used to produce thin
+      records that could pollute co-occurrence with non-read table lists. Now classified, target
+      recorded separately (a write is not a read relationship), DDL explicitly skipped and counted
+      in the report. Key finding: analyzing Insert/Create at the AST root is required - analyzing
+      the inner SELECT alone misreads outer-attached CTEs as physical tables.</div>
+      <div class="ship-note"><b>Step 3 - star expansion.</b> Lives here mechanically, unlocked by
+      the provided catalog. Restricted to provided tables on purpose (no-guessing).</div>
+      <div class="ship-note"><b>Step 5 - subquery units.</b> Inline subqueries (common in raw
+      analyst SQL) are now overlap units; a 25-token floor filters noise.</div>
+      <div class="ship-note"><b>Step 6 - partner inference.</b> Joining a table's column to itself
+      is meaningless, so a resolved partner is evidence about the ambiguous side. Guards: scope has
+      no derived sources, and exactly one candidate remains (by elimination, or via catalog after
+      excluding the partner's own table - which plain catalog resolution cannot do). Result status
+      is <code>join_inferred</code>, never merged into resolved, dashed in the graph.</div>`
   },
   {
     id: "catalog", num: "3", name: "Catalog", file: "catalog.py",
-    planBadge: "R3",
+    ship: "R3",
     overview: `
       <div class="io">
-        <div class="box"><b>Input</b><code>list[QueryRecord]</code> (first pass)</div>
-        <div class="box"><b>Output</b>Inferred <code>table -> {columns}</code> map, plus records <i>rebuilt</i> with it</div>
+        <div class="box"><b>Input</b>First-pass records; optionally a real schema via <code>--catalog schema.json</code></div>
+        <div class="box"><b>Output</b>Merged <code>table -> {columns}</code> map; records <i>rebuilt</i> with it</div>
       </div>
-      <p>No database connection is assumed, so the tool <b>bootstraps its own schema knowledge</b>
-      from the corpus itself: every confidently-resolved column teaches it which columns a table has.
-      Then a second pass replays extraction with that knowledge to resolve columns that were
-      ambiguous the first time. Columns still ambiguous after this stay flagged - never guessed.</p>`,
+      <p>Two sources of schema knowledge. <b>Provided</b> (the real warehouse schema, one
+      <code>information_schema</code> query to produce): ground truth, wins per table, unlocks
+      star expansion. <b>Inferred</b> (bootstrapped from qualified references across the corpus):
+      the offline fallback, and gap-filler for tables the provided catalog does not cover.
+      The report always states which source was used, so readers know the confidence basis.</p>`,
     algorithm: `
       <ol>
-        <li><b>Build:</b> for every column with status <code>resolved</code> or
-            <code>unqualified_resolved</code>, add <code>col.name</code> to <code>catalog[col.table]</code>.</li>
-        <li><b>Refine (second pass):</b> re-run <code>extract_record</code> on each original AST,
-            this time passing the catalog. Re-extracting (rather than patching in place) keeps
-            joins and contexts consistent with the new resolutions.</li>
-        <li>During re-extraction, an ambiguous column is upgraded to
-            <code>catalog_resolved</code> <b>iff exactly one</b> table in the query's scope
-            has that column in the catalog. Two candidates = still ambiguous.</li>
-        <li>Report stats: how many resolved, how many still ambiguous.</li>
+        <li><b>Load provided</b> (if given): JSON <code>{"schema.table": ["col", ...]}</code>,
+            case-normalized, shape-validated with a clear CLI error on bad input.</li>
+        <li><b>Build inferred:</b> every <code>resolved</code> / <code>unqualified_resolved</code>
+            column teaches <code>catalog[table] += column</code>.</li>
+        <li><b>Merge:</b> <code>merged = inferred; merged.update(provided)</code> - provided wins
+            per table.</li>
+        <li><b>Refine:</b> re-run <code>extract_record</code> on each original AST with the merged
+            catalog (and the provided table set for star expansion). Re-extracting rather than
+            patching keeps joins, contexts, and inference consistent with the new resolutions.</li>
+        <li>Ambiguous -> <code>catalog_resolved</code> iff exactly one candidate. Two candidates =
+            still ambiguous. Report stats either way.</li>
       </ol>`,
     example: `
-      <p>From the whole example corpus, qualified references teach the catalog:</p>
+      <p>From the whole corpus, qualified references teach the inferred catalog:</p>
       <pre>catalog = {
   "orders":    {"order_id", "customer_id", "amount", "created_at"},
   "customers": {"customer_id", "region", ...},
-  ...
 }</pre>
-      <p>Now imagine another query in the corpus: <code>SELECT amount FROM orders o JOIN refunds f ON ...</code>
-      where <code>amount</code> was ambiguous (two tables in scope). If the catalog shows only
-      <code>orders</code> has <code>amount</code>, it upgrades:</p>
+      <p>Now another query: <code>SELECT amount FROM orders o JOIN refunds f ON o.id = f.order_id</code>.
+      If only <code>orders</code> carries <code>amount</code>:</p>
       <pre>(None: amount, <span class="c">ambiguous</span>) -> (orders.amount, <span class="c">catalog_resolved</span>)</pre>
-      <p>If <code>refunds</code> also had <code>amount</code>, it would stay ambiguous.</p>`,
-    roadmap: `
-      <div class="plan-note"><b>Roadmap step 3</b> - optional <code>--catalog file.json</code> with the
-      real warehouse schema (from <code>information_schema</code>). Provided catalog wins per table,
-      inference remains the offline fallback. Unlocks <code>SELECT *</code> expansion
-      (<code>star_expanded</code>) and resolves far more ambiguity with ground truth instead of inference.</div>
-      <p>Design-notes also flags the refine rebuild cost (~2x extraction); acceptable now,
-      worth a look at 100 files.</p>`
+      <p>If <code>refunds</code> also had <code>amount</code>, it stays ambiguous - unless a join
+      partner excludes one candidate (extract stage, step 6).</p>
+      <p>On the bundled examples (inferred only): <code>catalog-resolved 2, still ambiguous 4</code>.</p>`,
+    changes: `
+      <div class="ship-note"><b>Step 3 - the workaround became the fallback.</b> Schema inference
+      was always a stand-in for not assuming a warehouse connection; anyone with a real corpus
+      usually has the schema. <code>--catalog</code> makes ground truth first-class while keeping
+      the tool fully usable offline. The <code>--catalog-dsn</code> convenience helper was
+      deliberately deferred: it would add a database-driver dependency for a JSON file that is one
+      query to produce.</div>
+      <p>Still open (design-notes): the refine pass re-extracts every record (~2x cost). Measured
+      irrelevant at current scale (full 80-file pipeline &lt; 1s); revisit only with data.</p>`
   },
   {
     id: "cooccurrence", num: "4", name: "Co-occurrence", file: "cooccurrence.py",
-    planBadge: "R4a",
+    ship: "R4a R6",
     overview: `
       <div class="io">
         <div class="box"><b>Input</b>Refined <code>list[QueryRecord]</code></div>
-        <div class="box"><b>Output</b>Frequency + pair-count tables: table freq, table pairs, column pairs, aggregated join edges</div>
+        <div class="box"><b>Output</b>Frequencies, pair counts, per-key join edges, collapsed join <i>relationships</i>, per-pair file counts</div>
       </div>
-      <p>Pure counting - the "exact facts" layer. How often does each table appear? Which table
-      pairs appear in the same query? Which columns are used together in join/filter/group
-      positions? Which join keys connect which tables, and how often?</p>`,
+      <p>Pure counting - the "exact facts" layer - but it now produces <b>two views of joins</b>
+      for two consumers. <code>join_edges()</code> keeps per-key detail (which columns, how often,
+      inferred or stated) for humans reading <code>join_edges.csv</code>.
+      <code>join_relationships()</code> collapses composite keys to one relationship per table
+      pair per statement for the graph, so a two-column key does not count double.</p>`,
     algorithm: `
       <ol>
-        <li><b>Table frequency:</b> count distinct queries mentioning each table.</li>
-        <li><b>Table co-occurrence:</b> for each query, count every pair from
+        <li><b>Table frequency:</b> distinct queries mentioning each table.</li>
+        <li><b>Table co-occurrence:</b> per query, every pair from
             <code>combinations(sorted(tables), 2)</code>.</li>
-        <li><b>Column co-occurrence:</b> same, but only columns in <i>interesting</i> contexts
-            (join / filter / group) - select-list columns would be noise.</li>
-        <li><b>Join edges:</b> canonicalize each <code>JoinEdge</code> (sorted table+column pair so
-            <code>a=b</code> and <code>b=a</code> merge), then count.</li>
-        <li>Sort every output by (-count, name) - deterministic and most-interesting-first.</li>
+        <li><b>Per-pair file counts:</b> in how many <i>distinct files</i> each pair co-occurs -
+            the graph stage uses this to discount single-file evidence.</li>
+        <li><b>Column co-occurrence:</b> only join / filter / group contexts (select-list columns
+            would be noise).</li>
+        <li><b>Join edges (per key):</b> canonicalized so <code>a=b</code> and <code>b=a</code>
+            merge; counted per (pair, key columns, inference flag).</li>
+        <li><b>Join relationships (per pair):</b> the set of joined table pairs per statement,
+            counted across the corpus. Composite keys collapse here.</li>
+        <li><b>Partner-inferred pairs:</b> pairs whose <i>every</i> observed join was inferred -
+            rendered dashed so inferred structure is never mistaken for stated structure.</li>
+        <li>Every output sorted (-count, names): deterministic, most-interesting-first.</li>
       </ol>`,
     example: `
-      <p>The example query contributes:</p>
+      <p>The running example contributes co-occurrence but <b>no join edge</b> (its join crosses a
+      CTE boundary; see Extract). A composite-key statement shows the two views:</p>
+      <pre>... JOIN refunds r ON o.tenant_id = r.tenant_id AND o.order_id = r.order_id</pre>
       <table class="mini">
-        <tr><th>table_a</th><th>table_b</th><th>count</th></tr>
-        <tr><td>customers</td><td>orders</td><td>+1</td></tr>
+        <tr><th>join_edges() - key detail for humans</th><th>join_relationships() - for the graph</th></tr>
+        <tr>
+          <td>(refunds, orders, tenant_id, tenant_id, 1, "")<br>(refunds, orders, order_id, order_id, 1, "")</td>
+          <td>(refunds, orders, <b>1</b>)&nbsp;&nbsp;<span class="c"># one relationship, not two edges</span></td>
+        </tr>
       </table>
-      <p>and (via the catalog-aware second pass, where <code>r.customer_id</code> traces to
-      <code>orders</code>) the join edge:</p>
-      <table class="mini">
-        <tr><th>left_table</th><th>right_table</th><th>left_col</th><th>right_col</th><th>count</th></tr>
-        <tr><td>customers</td><td>orders</td><td>customer_id</td><td>customer_id</td><td>+1</td></tr>
-      </table>
-      <p>Across ~100 files these counts become the signal: pairs joined 40 times on the same
-      key are a strong modeling hint.</p>`,
-    roadmap: `
-      <div class="plan-note"><b>Roadmap step 4a</b> - collapse composite join keys. Today
-      <code>ON a.tenant_id = b.tenant_id AND a.order_id = b.order_id</code> produces two independent
-      edges, inflating that pair's degree. Planned: one <i>relationship</i> per table pair per
-      statement, with the key columns kept as metadata in <code>join_edges.csv</code> instead of
-      graph weight.</div>`
+      <p>Across ~100 files these counts are the signal: a pair joined in 40 statements on the same
+      key is a strong modeling hint.</p>`,
+    changes: `
+      <div class="ship-note"><b>Step 4a - composite keys collapse.</b> A
+      <code>(tenant_id, order_id)</code> key used to create two independent graph edges, inflating
+      that pair's degree and distorting communities. The relationship (per pair, per statement) is
+      now the graph's unit; key detail stays in the CSV where it belongs.</div>
+      <div class="ship-note"><b>Step 6 - inference flag.</b> Per-key rows carry
+      <code>inference: partner</code>, and inferred-only pairs are tracked for dashed rendering.</div>`
   },
   {
     id: "overlap", num: "5", name: "Overlap", file: "overlap.py",
-    planBadge: "R5",
+    ship: "R5",
     overview: `
       <div class="io">
-        <div class="box"><b>Input</b>All <code>CteInfo</code> fingerprints collected from records</div>
-        <div class="box"><b>Output</b><code>repeated_logic</code> rows - groups of duplicated CTE blocks</div>
+        <div class="box"><b>Input</b>All units (CTEs + inline subqueries) from every record</div>
+        <div class="box"><b>Output</b><code>repeated_logic</code> rows - duplicate groups ranked by consolidation ROI</div>
       </div>
       <p>Finds copy-pasted and near-duplicate logic across files - the highest-ROI signal, because
-      a CTE repeated in 6 files is a prime candidate for one shared dbt model. Two match types:
-      <b>exact</b> (identical normalized SQL) and <b>structural</b> (same tables + output columns,
-      but differing SQL - a near-duplicate).</p>`,
+      a block repeated in 6 files is a prime candidate for one shared dbt model. Two match types:
+      <b>exact</b> (identical normalized SQL) and <b>near_dupe</b> (token-level similar after
+      masking literals - same logic with renames, added filters, or changed constants).
+      Groups are ranked by <code>occurrences x similarity</code>.</p>`,
     algorithm: `
       <ol>
-        <li>Collect every CTE fingerprint from every record.</li>
-        <li>Group by <code>exact_hash</code> (sha1 of normalized SQL: lowercased, comment-stripped,
-            consistently formatted). Groups of >= 2 -> <b>exact</b> matches.</li>
-        <li>Group by <code>signature</code> = (tables, sorted output columns). Groups of >= 2
-            that contain <b>>= 2 distinct hashes</b> -> <b>structural</b> matches
-            (the distinct-hash rule stops exact groups being double-reported).</li>
-        <li>Each group becomes one row: occurrences, distinct files, CTE names, sample SQL.</li>
-        <li>Sort by -occurrences (deterministic tiebreakers).</li>
+        <li><b>Fingerprint</b> each unit's literal-masked normalized SQL twice: the set of
+            5-token shingles (rewards preserved structure) and the set of tokens (keeps recall on
+            small units).</li>
+        <li><b>Exact fast path:</b> identical sha1 of normalized SQL -> union immediately.</li>
+        <li><b>Candidates:</b> deterministic MinHash (128 fixed-seed permutations) over token sets,
+            LSH-bucketed (32 bands x 4 rows, ~0.42 collision threshold). LSH only <i>prunes</i>;
+            it never decides.</li>
+        <li><b>Arbiter:</b> exact blended similarity
+            <code>0.5 * Jaccard(shingles) + 0.5 * Jaccard(tokens)</code>; union pairs
+            <code>&gt;= 0.45</code>.</li>
+        <li><b>Groups:</b> union-find anchored to the smallest index, so grouping is
+            order-independent (tested). Groups of &gt;= 2 become rows: exact (all hashes equal,
+            similarity 1.00) or near_dupe (min pairwise similarity reported).</li>
+        <li>Sort by <code>-occurrences x similarity</code>: consolidation ROI first.</li>
       </ol>`,
     example: `
-      <p>Suppose two other files also define a <code>recent_orders</code> CTE. File B copy-pasted it
-      exactly; file C rewrote it with a different date filter but same shape:</p>
-      <pre>exact_hash groups:
-  3fa9...: [ours, file_B]                      -> <span class="c">exact</span> match, 2 occurrences
-
-signature groups ({"tables":["orders"],"out":["order_id","customer_id","amount"]}):
-  [ours, file_B, file_C]  (2 distinct hashes) -> <span class="c">structural</span> match, 3 occurrences</pre>
-      <p>Report reading: "this orders-filtering block exists in 3 files, 2 of them verbatim -
-      consider one shared staging model."</p>`,
-    roadmap: `
-      <div class="plan-note"><b>Roadmap step 5</b> - replace the coarse signature with token-level
-      near-dupe detection: normalize the AST (literals -> <code>?</code>), 5-token shingles,
-      MinHash (128 perms, fixed seed), LSH buckets, exact Jaccard >= 0.7, union-find into groups.
-      Also fingerprint <b>inline subqueries</b>, not just named CTEs. Output gains a
-      <code>similarity</code> score and groups are ranked by <code>occurrences x similarity</code>.
-      Still fully deterministic.</div>`
+      <p>The running example's CTE, fingerprinted (real trace - note the masked literal):</p>
+      <pre>normalized: select o.order_id, o.customer_id, o.amount from orders as o
+            where o.created_at > '2026-01-01'
+masked:     ... where o.created_at > <span class="c">?</span>        (12 tokens, 8 shingles)</pre>
+      <p>Why the blend exists - measured on real pairs during implementation:</p>
+      <table class="mini">
+        <tr><th>pair</th><th>shingle J</th><th>token J</th><th>blend</th><th>verdict at 0.45</th></tr>
+        <tr><td class="plain">small CTE vs same + one WHERE clause</td><td>0.33</td><td>0.73</td><td>0.53</td><td class="plain">near_dupe (correct)</td></tr>
+        <tr><td class="plain">examples/ monthly_orders variants</td><td>0.30</td><td>0.63</td><td>0.46</td><td class="plain">near_dupe (correct)</td></tr>
+        <tr><td class="plain">same CTE, only literal changed</td><td>1.00</td><td>1.00</td><td>1.00</td><td class="plain">near_dupe, sim 1.00</td></tr>
+        <tr><td class="plain">two unrelated aggregations</td><td>0.00</td><td>0.19</td><td>0.09</td><td class="plain">not grouped (correct)</td></tr>
+      </table>
+      <p>On the bundled examples the three <code>monthly_orders</code> CTEs (two verbatim, one with
+      an added filter) form one near_dupe group: <code>occurrences 3, similarity 0.46</code>.
+      Report reading: "this block exists in 3 files, 2 verbatim - consider one shared staging
+      model."</p>`,
+    changes: `
+      <div class="ship-note"><b>Step 5 - signature retired, similarity measured.</b> The old
+      structural signature (tables + output columns) both missed real near-dupes and could flag
+      wildly different logic sharing a table list; it also double-reported groups (an exact row
+      <i>and</i> a structural row for the same CTEs). It is replaced by token-level detection that
+      also sees inline subqueries.</div>
+      <div class="ship-note"><b>A documented deviation.</b> The roadmap planned shingle-only
+      Jaccard at 0.7. Measurement said no: one added WHERE clause on a 12-token CTE drops shingle
+      Jaccard to ~0.33 while the pair is obviously the same logic. The blend at 0.45 separates
+      cleanly (0.46-0.53 for real near-dupes vs ~0.09 for unrelated). The lesson generalizes:
+      thresholds are empirical, not aesthetic - measure before you commit.</div>`
   },
   {
     id: "graph", num: "6", name: "Graph + clusters", file: "graph.py",
-    planBadge: "R4b",
+    ship: "R4b",
     overview: `
       <div class="io">
-        <div class="box"><b>Input</b>Tables, co-occurrence pairs, join edges</div>
-        <div class="box"><b>Output</b>networkx graph, communities (clusters), cluster rows with supporting evidence</div>
+        <div class="box"><b>Input</b>Tables, join relationships, co-occurrence + per-pair file counts, inferred pairs</div>
+        <div class="box"><b>Output</b>networkx graph, communities, cluster rows with evidence and honesty notes</div>
       </div>
-      <p>Builds a table relationship graph and asks: which groups of tables form natural
-      neighborhoods? Each community is presented as a <b>cluster suggestion</b> - a possible scope
-      for a set of dbt models - with its internal join keys, supporting files, and repeated CTEs
-      as evidence a human can check.</p>`,
+      <p><b>Join topology drives the clusters.</b> Edge weight = join relationship count.
+      Co-occurrence contributes only a damped prior (<code>alpha = 0.1</code>) and only for pairs
+      seen in <b>&gt;= 2 distinct files</b> - so one wide dashboard query can no longer pull every
+      table it touches into a single community, while tables that relate without explicit JOINs
+      (unions, filtered-together sets) still attract weakly. Each community becomes a
+      <b>cluster suggestion</b> with checkable evidence.</p>`,
     algorithm: `
       <ol>
-        <li>Nodes = all physical tables. Edges = co-occurrence pairs (weight = count);
-            join counts are added onto edge weights and tracked as <code>joins</code>.</li>
-        <li>Communities via <code>greedy_modularity_communities(weight="weight")</code> -
-            chosen because it is <b>deterministic</b> (Louvain-style algorithms are randomized).</li>
-        <li>Sort members within each community; sort communities by size then name.</li>
-        <li>For each cluster, gather evidence: files touching >= 2 member tables,
-            join keys internal to the cluster, and repeated CTEs whose tables all fall inside it
-            (only overlap-confirmed repeats count).</li>
+        <li>Nodes = all physical tables. Join relationship edges:
+            <code>weight = count, joins = count</code>, plus an <code>inferred</code> flag for
+            partner-inferred-only pairs.</li>
+        <li>Co-occurrence prior: <code>weight += 0.1 * count</code>, only if the pair co-occurs in
+            &gt;= 2 distinct files. Prior-only edges have <code>joins = 0</code> (never drawn).</li>
+        <li><code>greedy_modularity_communities(weight, resolution)</code> - deterministic;
+            <code>--resolution</code> exposed for splitting stubborn blobs.</li>
+        <li>Communities sorted by size then name; members sorted.</li>
+        <li>Evidence per cluster: supporting files (&gt;= 2 member tables), internal join keys
+            (with <code>[inferred]</code> markers), and repeated CTEs confirmed by the overlap
+            stage's groups.</li>
+        <li>Join-less singletons get an explicit note: <code>unconnected (no join edges)</code> -
+            absorbed silently nowhere.</li>
       </ol>`,
     example: `
-      <p>On the toy corpus the example's tables land together:</p>
-      <pre>cluster 0: [customers, orders, order_items, products, ...]   # 8 of 11 tables
-cluster 1: [ad_spend, campaigns, ...]
-
-evidence for cluster 0:
-  internal joins:  customers.customer_id = orders.customer_id (x3), ...
-  supporting files: customer_orders.sql, customer_360.sql, ...
-  repeated CTEs:    recent_orders</pre>
-      <p>That one cluster holding 8 of 11 tables is the known weakness: co-occurrence weight
-      pulls everything together (see Planned changes).</p>`,
-    roadmap: `
-      <div class="plan-note"><b>Roadmap step 4b</b> - drive communities by <b>join topology</b>, not
-      co-occurrence: weight = join relationship count, with co-occurrence folded in only as a weak
-      prior (<code>+ 0.1 x count</code>, and only for pairs seen in >= 2 distinct files, which kills
-      the "one giant dashboard query links everything" artifact). Add a <code>--resolution</code>
-      flag; join-less tables become explicit "unconnected" singletons.</div>`
+      <p>The before/after on the bundled examples corpus is the whole argument
+      (this landed as a reviewed golden diff):</p>
+      <table class="mini">
+        <tr><th>before (co-occurrence weighted)</th><th>after (join-topology weighted)</th></tr>
+        <tr>
+          <td class="plain">cluster 0: <b>8 of 11 tables</b> - customers, regions, segments,
+              payments, campaign_clicks, campaigns, orders, web.events<br>
+              cluster 1: 3 tables</td>
+          <td class="plain">cluster 0 (5): customers, regions, segments, payments, orders<br>
+              cluster 1 (3): categories, products, order_items<br>
+              cluster 2 (2): campaign_clicks, campaigns<br>
+              cluster 3 (1): web.events - <i>unconnected (no join edges)</i></td>
+        </tr>
+      </table>
+      <p>web.events had co-occurred with other tables inside wide queries but never joined
+      anything; before, it was absorbed into the blob. Now the output says exactly what is known:
+      nothing joins it.</p>`,
+    changes: `
+      <div class="ship-note"><b>Step 4b - the weakest link, fixed.</b> Co-occurrence was the
+      dominant weight, but it is weak evidence: two tables in one 15-table dashboard query co-occur
+      yet may be unrelated. The design-notes question "what should community detection weight?"
+      resolved to: join topology, with co-occurrence as a damped &gt;= 2-file prior.
+      <code>greedy_modularity</code> stays because it is deterministic; seeded Louvain was the
+      rejected alternative (equal determinism, more moving parts).</div>
+      <p>The scale gate asserts the shape holds at 80 files: no community exceeds 60% of joined
+      tables.</p>`
   },
   {
     id: "report", num: "7", name: "Report", file: "report.py",
-    planBadge: "R8",
+    ship: "R1 R8",
     overview: `
       <div class="io">
         <div class="box"><b>Input</b>Everything upstream: records, stats, overlap rows, clusters, graph</div>
-        <div class="box"><b>Output</b><code>report.html</code>, <code>graph.html</code>, <code>inventory.sqlite</code>, 6 CSVs, <code>parse_errors.log</code></div>
+        <div class="box"><b>Output</b><b>inventory.sqlite (primary)</b>, 6 CSVs, report.html, graph.html, parse_errors.log</div>
       </div>
-      <p>Serialization only - no new analysis happens here. The same data is written in four
-      shapes for four uses: CSVs (diffable / spreadsheet), SQLite (ad-hoc SQL over the inventory),
-      an HTML summary (browse + sort), and an interactive join graph (see structure at a glance).
-      Everything works offline.</p>`,
+      <p>Serialization only - no new analysis. <code>inventory.sqlite</code> is the declared
+      primary artifact (schema documented in the README): normalized inventory tables plus every
+      stat table, ready for ad-hoc SQL. The HTML report is a thin browsable summary with a
+      <b>frozen feature set</b>; the pyvis graph is capped to stay usable at scale.</p>`,
     algorithm: `
       <ol>
-        <li>Write each stats table as CSV (fixed headers, pre-sorted rows).</li>
-        <li>Write <code>inventory.sqlite</code>: normalized tables (queries, query_tables, columns,
-            joins, ctes) plus every stats table.</li>
-        <li>Write <code>parse_errors.log</code> (file#stmt + error, or "none").</li>
-        <li>Render <code>graph.html</code> with pyvis: <b>join edges only</b> (the full co-occurrence
-            graph is an unreadable hairball), node size = join degree, color = cluster,
-            <code>cdn_resources="in_line"</code> so it is offline; inject a cluster legend.</li>
-        <li>Render <code>report.html</code> from the Jinja template (autoescape ON) with headline
-            metrics and one sortable section per stats table, honestly-worded hints included.</li>
+        <li>CSVs: fixed headers, pre-sorted rows.</li>
+        <li><code>inventory.sqlite</code>: queries (with kind + target_table), query_tables,
+            columns (status + context), joins (with inference), ctes, plus one table per CSV.</li>
+        <li><code>parse_errors.log</code>: file#stmt + error, or "none".</li>
+        <li><code>graph.html</code>: <b>join edges only</b> (the full co-occurrence graph is an
+            unreadable hairball), sorted by (-joins, a, b) and capped at
+            <code>--graph-edges</code> (default 200) with a truncation note in the legend
+            pointing at join_edges.csv. Dashed = partner-inferred. Node size = join degree,
+            color = cluster. <code>cdn_resources="in_line"</code>: works offline.</li>
+        <li><code>report.html</code>: Jinja with autoescape ON; headline metrics now include
+            <b>statement kinds</b> and <b>catalog source</b>, so skipped DDL and inference basis
+            are visible at a glance.</li>
       </ol>`,
     example: `
-      <p>The example query's footprint across the artifacts:</p>
-      <pre>table_frequency.csv    orders,1  customers,1
-join_edges.csv         customers,orders,customer_id,customer_id,1
-repeated_logic.csv     structural,...,3,3,"recent_orders",...
-clusters.csv           0,8,"customers, orders, ...","customers.customer_id = orders.customer_id (x1)",...
-inventory.sqlite       SELECT * FROM columns WHERE table_name='orders';
-graph.html             customers -- orders edge, width 1, same cluster color</pre>`,
-    roadmap: `
-      <div class="plan-note"><b>Roadmap step 8</b> - declare <code>inventory.sqlite</code> the primary
-      artifact and document its schema; at scale, cap <code>graph.html</code> to the top-K join edges
-      (default 200) with a truncation note; freeze the HTML report feature set.</div>
-      <div class="plan-note"><b>Roadmap step 1</b> (cross-cutting) - end-to-end snapshot + determinism
-      tests finally cover this file, which is currently untested.</div>`
+      <p>The running example's footprint across the artifacts:</p>
+      <pre>queries (sqlite)      kind=select, target_table='', n_tables=2, n_ctes=1
+columns (sqlite)      SELECT * FROM columns WHERE status='derived';   -- r.amount, r.customer_id
+table_frequency.csv   orders,1  customers,1
+repeated_logic.csv    (joins the monthly_orders-style near_dupe group if repeated elsewhere)
+graph.html            customers, orders nodes; no edge from this statement alone
+report.html           Statement kinds: "select: N", Catalog source: "inferred"</pre>
+      <p>Ad-hoc analysis straight off the primary artifact:</p>
+      <pre>sqlite3 output/inventory.sqlite \\
+  "select table_name, count(*) from columns
+   where status='ambiguous' group by 1 order by 2 desc"</pre>`,
+    changes: `
+      <div class="ship-note"><b>Step 1 - finally under test.</b> This stage was entirely untested
+      at review time despite building four output formats. E2e tests now assert byte-identical
+      determinism across runs (pyvis included - verified stable as-is) and pin the two flagship
+      CSVs to golden snapshots.</div>
+      <div class="ship-note"><b>Step 8 - sqlite is the product.</b> Four formats invited feature
+      creep in the least maintainable one. inventory.sqlite is the documented primary artifact;
+      the HTML summary is frozen; the graph caps at the top-K join edges by frequency
+      (deterministic ordering) instead of degrading into a multi-MB laggy page at scale.</div>`
   }
 ];
 
@@ -532,7 +651,7 @@ STAGES.forEach((s, i) => {
   const el = document.createElement("div");
   el.className = "stage";
   el.dataset.id = s.id;
-  el.innerHTML = `<span class="plan-badge">${s.planBadge}</span>
+  el.innerHTML = `<span class="ship-badge">${s.ship}</span>
     <span class="num">${s.num}</span>
     <div class="name">${s.name}</div>
     <div class="file">${s.file}</div>`;
@@ -551,7 +670,7 @@ function selectStage(id) {
   document.getElementById("tb-overview").innerHTML = s.overview;
   document.getElementById("tb-algorithm").innerHTML = s.algorithm;
   document.getElementById("tb-example").innerHTML = s.example;
-  document.getElementById("tb-roadmap").innerHTML = s.roadmap;
+  document.getElementById("tb-changes").innerHTML = s.changes;
   selectTab(currentTab);
 }
 
@@ -559,7 +678,7 @@ function selectTab(name) {
   currentTab = name;
   document.querySelectorAll(".tab").forEach(t =>
     t.classList.toggle("active", t.dataset.tab === name));
-  ["overview", "algorithm", "example", "roadmap"].forEach(n =>
+  ["overview", "algorithm", "example", "changes"].forEach(n =>
     document.getElementById("tb-" + n).classList.toggle("active", n === name));
 }
 
@@ -568,9 +687,9 @@ document.getElementById("tabs").addEventListener("click", e => {
   if (t) selectTab(t.dataset.tab);
 });
 
-document.getElementById("planToggle").addEventListener("change", e => {
-  document.body.classList.toggle("show-plan", e.target.checked);
-  if (e.target.checked) selectTab("roadmap");
+document.getElementById("shipToggle").addEventListener("change", e => {
+  document.body.classList.toggle("show-ship", e.target.checked);
+  if (e.target.checked) selectTab("changes");
 });
 
 selectStage("parse");
