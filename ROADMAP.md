@@ -150,18 +150,21 @@ is silently guessed.
 
 ## Step 7 - Synthetic scale corpus + performance gate
 
-**Status:** not started
+**Status:** done (2026-07-04); measured full-pipeline runtime on the 80-file
+corpus: well under 1s against the 30s budget
 **Why:** validated on 5 files, targeted at ~100; pyvis size, runtime, and
 cluster shape at scale are unverified.
 
-- [ ] Seeded generator `tests/gen_corpus.py` (seed 42): ~80 files over a ~60-table synthetic schema
-- [ ] Plant ground truth: X exact duplicate CTEs, Y near-dupes at ~0.8, Z composite-key joins, wide 15-table queries, some `INSERT INTO ... SELECT`
-- [ ] Smoke test (marked `slow`): full pipeline on generated corpus
-- [ ] Assert runtime < 30s
-- [ ] Assert planted-duplicate recall matches ground truth
-- [ ] Assert no community holds > 60% of connected tables
-- [ ] Assert `graph.html` < 3MB
-- [ ] Wire into CI/dev docs (`uv run pytest -m slow`)
+- [x] Seeded generator `tests/gen_corpus.py` (seed 42): 80 files over a 60-table synthetic schema
+- [x] Plant ground truth: 6 exact duplicate CTEs, 5 near-dupe literal variants, 8 composite-key
+      join statements, two wide 15-table queries, 5 `INSERT INTO ... SELECT`
+- [x] Smoke test (marked `slow`): full pipeline on generated corpus
+- [x] Assert runtime < 30s
+- [x] Assert planted-duplicate recall matches ground truth (exact and near groups)
+- [x] Assert no community holds > 60% of joined tables
+- [x] Assert `graph.html` < 3MB
+- [x] Wire into dev docs (`uv run pytest -m slow`; marker registered in pyproject)
+- [x] Bonus: determinism asserted at scale (second run, byte-identical outputs)
 
 **Acceptance:** the pipeline is validated at target scale before anyone trusts
 it on a real corpus.

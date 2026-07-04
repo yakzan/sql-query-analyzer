@@ -25,3 +25,8 @@ build-backend = "uv_build"
 dev = [
     "pytest>=9.1.1",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: full-pipeline scale tests on the synthetic corpus (uv run pytest -m slow)",
+]

@@ -84,6 +84,11 @@ refresh the goldens deliberately and review the diff:
 UPDATE_GOLDENS=1 uv run pytest -q
 ```
 
+A scale gate (`uv run pytest -m slow`) runs the full pipeline on a seeded
+80-file synthetic corpus with planted ground truth (exact dupes, near-dupes,
+composite keys, wide queries, inserts) and asserts recall, runtime, artifact
+size, cluster shape, and determinism.
+
 ## Architecture & roadmap
 
 - `docs/architecture.html` - self-contained interactive explainer of the
@@ -101,5 +106,3 @@ Each limitation maps to a planned fix in `ROADMAP.md`:
 
 - `SELECT *` columns stay opaque unless a real schema catalog is provided via `--catalog` (step 3).
 - Inline subqueries under ~25 tokens are not fingerprinted for overlap (deliberate noise filter).
-- Validated on a small example corpus; behavior at the ~100-file target scale
-  is not yet exercised by tests (step 7).
