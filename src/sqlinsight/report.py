@@ -190,7 +190,7 @@ def write_report(
              "files", "tables", "sample_sql"], repeated),
         "clusters.csv": (
             ["cluster_id", "size", "tables", "internal_join_keys",
-             "supporting_files", "repeated_ctes"], clusters),
+             "supporting_files", "repeated_ctes", "note"], clusters),
     }
     for fname, (header, rows) in csv_specs.items():
         _write_csv(outdir / fname, header, rows)
@@ -230,10 +230,10 @@ def write_report(
 
     sections = [
         _table_section("Cluster suggestions",
-                        "Communities of tightly-coupled tables. A starting point for "
+                        "Communities of join-coupled tables. A starting point for "
                         "grouping new dbt models, not a prescription.",
                         ["cluster_id", "size", "tables", "internal_join_keys",
-                         "supporting_files", "repeated_ctes"], clusters),
+                         "supporting_files", "repeated_ctes", "note"], clusters),
         _table_section("Repeated logic (overlap)",
                         "CTE/subquery blocks reused across files. Highest-ROI candidates "
                         "for shared models. 'exact' = identical SQL; 'structural' = same "

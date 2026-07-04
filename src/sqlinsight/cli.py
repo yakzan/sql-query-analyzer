@@ -10,7 +10,12 @@ from .extract import extract_all
 from .parse import parse_all
 
 
-def run(source: str, outdir: str, catalog_path: str | None = None) -> int:
+def run(
+    source: str,
+    outdir: str,
+    catalog_path: str | None = None,
+    resolution: float = 1.0,
+) -> int:
     src_path = Path(source)
     if not src_path.exists():
         print(f"error: source path not found: {source}", file=sys.stderr)
@@ -50,12 +55,14 @@ def run(source: str, outdir: str, catalog_path: str | None = None) -> int:
     table_cooc = cooccurrence.table_cooccurrence(records)
     col_cooc = cooccurrence.column_cooccurrence(records)
     join_rows = cooccurrence.join_edges(records)
+    join_rels = cooccurrence.join_relationships(records)
+    cooc_files = cooccurrence.cooccurring_file_counts(records)
     repeated = overlap.repeated_logic(records)
 
     print("[5/6] building graph + detecting clusters ...")
     all_tables = sorted({t for r in records for t in r.tables})
-    g = graph.build_graph(all_tables, table_cooc, join_rows)
-    communities = graph.detect_communities(g)
+    g = graph.build_graph(all_tables, table_cooc, join_rels, cooc_files)
+    communities = graph.detect_communities(g, resolution=resolution)
     clusters = graph.build_clusters(records, communities, join_rows)
     print(f"      {len(communities)} cluster(s) over {len(all_tables)} table(s)")
 
@@ -81,8 +88,17 @@ def main(argv: list[str] | None = None) -> int:
              ' {"schema.table": ["col", ...]}. Wins over the inferred catalog'
              " per table and enables SELECT * expansion.",
     )
+    parser.add_argument(
+        "--resolution",
+        type=float,
+        default=1.0,
+        help="community detection resolution; > 1.0 favors more, smaller"
+             " clusters (default 1.0)",
+    )
     args = parser.parse_args(argv)
-    return run(args.source, args.out, catalog_path=args.catalog)
+    return run(
+        args.source, args.out, catalog_path=args.catalog, resolution=args.resolution
+    )
 
 
 if __name__ == "__main__":

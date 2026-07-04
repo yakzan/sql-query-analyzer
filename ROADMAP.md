@@ -69,28 +69,29 @@ ambiguity and makes `SELECT *` transparent.
 
 ## Step 4 - Join-topology-driven clustering
 
-**Status:** not started
+**Status:** done (2026-07-04)
 **Why:** co-occurrence is a weak signal (one wide dashboard query links
 unrelated tables); join topology is the real dbt signal. Composite keys
 currently inflate degree as separate edges.
 
 ### 4a - Collapse composite join keys
 
-- [ ] Group raw `JoinEdge`s per statement by canonical table pair
-- [ ] Emit one relationship per pair per statement with `key_columns: sorted[(lc, rc), ...]`
-- [ ] Aggregate across corpus: edge weight = number of statements with the relationship
-- [ ] Keep key-column detail in `join_edges.csv`; remove it from graph weight
-- [ ] Test: composite `(tenant_id, order_id)` join yields one edge, not two
+- [x] Group raw `JoinEdge`s per statement by canonical table pair
+- [x] Emit one relationship per pair per statement (key columns stay in `join_edges()`)
+- [x] Aggregate across corpus: edge weight = number of statements with the relationship
+- [x] Keep key-column detail in `join_edges.csv`; remove it from graph weight
+- [x] Test: composite `(tenant_id, order_id)` join yields one edge, not two
 
 ### 4b - Re-weight community detection
 
-- [ ] Build community graph from join relationships only (`weight = join_count`)
-- [ ] Fold co-occurrence in as weak prior: `weight += alpha * cooc_count`, default `alpha = 0.1`
-- [ ] Apply co-occurrence prior only for pairs co-occurring in >= 2 distinct files
-- [ ] Expose `--resolution` (default 1.0) passed to `greedy_modularity_communities`
-- [ ] Tables with no join edges become explicit "unconnected" singletons
-- [ ] Update goldens; verify the toy corpus no longer collapses into one giant cluster
-- [ ] Tests: dashboard-query artifact suppressed; determinism preserved
+- [x] Build community graph from join relationships only (`weight = join_count`)
+- [x] Fold co-occurrence in as weak prior: `weight += alpha * cooc_count`, default `alpha = 0.1`
+- [x] Apply co-occurrence prior only for pairs co-occurring in >= 2 distinct files
+- [x] Expose `--resolution` (default 1.0) passed to `greedy_modularity_communities`
+- [x] Tables with no join edges become explicit "unconnected" singletons (clusters.csv `note` column)
+- [x] Update goldens; verify the toy corpus no longer collapses into one giant cluster
+      (old: one 8-of-11-table blob; new: 5 + 3 + 2 + 1 unconnected)
+- [x] Tests: dashboard-query artifact suppressed; determinism preserved
 
 **Acceptance:** clusters follow join topology; wide queries no longer merge
 unrelated tables; output still byte-stable across runs.

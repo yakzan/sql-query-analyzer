@@ -47,6 +47,33 @@ def column_cooccurrence(records: list[QueryRecord]) -> list[tuple[str, str, int]
     )
 
 
+def cooccurring_file_counts(
+    records: list[QueryRecord],
+) -> dict[tuple[str, str], int]:
+    """Distinct files in which each table pair co-occurs. Pairs seen in a
+    single file only (e.g. one wide dashboard query) are weak evidence."""
+    files: dict[tuple[str, str], set[str]] = {}
+    for rec in records:
+        for a, b in combinations(sorted(set(rec.tables)), 2):
+            files.setdefault((a, b), set()).add(rec.file)
+    return {pair: len(fs) for pair, fs in files.items()}
+
+
+def join_relationships(records: list[QueryRecord]) -> list[tuple[str, str, int]]:
+    """Join relationships per table pair: composite keys collapse to one
+    relationship per pair per statement, so a two-column key does not count
+    double. Key-column detail stays in join_edges()."""
+    counter: Counter[tuple[str, str]] = Counter()
+    for rec in records:
+        pairs = {tuple(sorted((j.left_table, j.right_table))) for j in rec.joins}
+        for pair in pairs:
+            counter[pair] += 1
+    return sorted(
+        ((a, b, n) for (a, b), n in counter.items()),
+        key=lambda r: (-r[2], r[0], r[1]),
+    )
+
+
 def join_edges(records: list[QueryRecord]) -> list[tuple[str, str, str, str, int]]:
     counter: Counter[tuple[str, str, str, str]] = Counter()
     for rec in records:

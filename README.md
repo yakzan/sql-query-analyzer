@@ -101,9 +101,6 @@ Each limitation maps to a planned fix in `ROADMAP.md`:
 
 - Only named CTEs are fingerprinted for overlap; inline subqueries are not yet (step 5).
 - Near-duplicate detection is signature-based (tables + output columns), not token-level (step 5).
-- Composite join keys appear as separate edges, inflating graph degree (step 4a).
-- Clustering is driven mostly by co-occurrence, a weaker signal than join topology;
-  one wide query can pull unrelated tables into a cluster (step 4b).
 - `SELECT *` columns stay opaque unless a real schema catalog is provided via `--catalog` (step 3).
 - Non-SELECT statements (`INSERT INTO ... SELECT`, CTAS, DDL) yield thin records
   rather than being properly extracted or explicitly skipped (step 2).
