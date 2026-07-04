@@ -129,16 +129,19 @@ ranked by consolidation ROI, fully deterministic.
 
 ## Step 6 - Partner-informed join resolution
 
-**Status:** not started
+**Status:** done (2026-07-04)
 **Why:** joins with one ambiguous side vanish from the graph even when the
 resolved partner is strong evidence. Extend "no guessing" carefully.
 
-- [ ] In `_extract_joins`: when one side resolves to T and the other is ambiguous, attempt inference
-- [ ] Resolve iff exactly one candidate table via catalog, or exactly one unresolved source remains in scope
-- [ ] New distinct status `join_inferred` (never merged into `resolved`)
-- [ ] Include inferred edges in graph; flag them in `join_edges.csv` (`inference: partner`)
-- [ ] Render inferred edges visually distinct (dashed) in `graph.html`
-- [ ] Tests: recoverable case resolved and labeled; genuinely ambiguous case still dropped
+- [x] In `_extract_joins`: when one side resolves to T and the other is ambiguous, attempt inference
+- [x] Resolve iff exactly one candidate table via catalog (excluding the partner), or exactly one
+      other table remains in a derived-free scope
+- [x] New distinct status `join_inferred` (never merged into `resolved`)
+- [x] Include inferred edges in graph; flag them in `join_edges.csv` (`inference: partner`)
+      and mark them `[inferred]` in cluster evidence
+- [x] Render inferred edges visually distinct (dashed) in `graph.html`
+- [x] Tests: recoverable case resolved and labeled; genuinely ambiguous case still dropped;
+      derived sources in scope block inference; catalog narrowing beyond plain catalog resolution
 
 **Acceptance:** recovered edges are visible, labeled, and excludable; nothing
 is silently guessed.

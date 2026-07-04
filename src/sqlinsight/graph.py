@@ -16,6 +16,7 @@ def build_graph(
     table_cooc: list[tuple[str, str, int]],
     join_rels: list[tuple[str, str, int]],
     cooc_file_counts: dict[tuple[str, str], int] | None = None,
+    inferred_pairs: set[tuple[str, str]] | None = None,
 ) -> nx.Graph:
     """Join topology drives edge weight; co-occurrence is only a weak prior.
 
@@ -25,11 +26,12 @@ def build_graph(
     co-occur in >= MIN_COOC_FILES distinct files.
     """
     cooc_file_counts = cooc_file_counts or {}
+    inferred_pairs = inferred_pairs or set()
     g = nx.Graph()
     for t in tables:
         g.add_node(t)
     for a, b, n in join_rels:
-        g.add_edge(a, b, weight=float(n), joins=n)
+        g.add_edge(a, b, weight=float(n), joins=n, inferred=(a, b) in inferred_pairs)
     for a, b, c in table_cooc:
         if cooc_file_counts.get((a, b), 0) < MIN_COOC_FILES:
             continue
@@ -56,12 +58,12 @@ def detect_communities(g: nx.Graph, resolution: float = 1.0) -> list[list[str]]:
 def build_clusters(
     records: list[QueryRecord],
     communities: list[list[str]],
-    join_rows: list[tuple[str, str, str, str, int]],
+    join_rows: list[tuple[str, str, str, str, int, str]],
 ) -> list[dict]:
     ctes = collect_ctes(records)
     repeated_keys = repeated_unit_keys(records)
 
-    joined_tables = {t for lt, rt, _lc, _rc, _n in join_rows for t in (lt, rt)}
+    joined_tables = {t for lt, rt, _lc, _rc, _n, _inf in join_rows for t in (lt, rt)}
 
     rows: list[dict] = []
     for i, members in enumerate(communities):
@@ -80,8 +82,8 @@ def build_clusters(
             }
         )
         internal_joins = [
-            f"{lt}.{lc} = {rt}.{rc} (x{n})"
-            for lt, rt, lc, rc, n in join_rows
+            f"{lt}.{lc} = {rt}.{rc} (x{n}){' [inferred]' if inf else ''}"
+            for lt, rt, lc, rc, n, inf in join_rows
             if lt in member_set and rt in member_set
         ]
         cluster_ctes = sorted(

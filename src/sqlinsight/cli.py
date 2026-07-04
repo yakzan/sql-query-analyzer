@@ -57,11 +57,14 @@ def run(
     join_rows = cooccurrence.join_edges(records)
     join_rels = cooccurrence.join_relationships(records)
     cooc_files = cooccurrence.cooccurring_file_counts(records)
+    inferred_pairs = cooccurrence.partner_inferred_pairs(records)
     repeated = overlap.repeated_logic(records)
 
     print("[5/6] building graph + detecting clusters ...")
     all_tables = sorted({t for r in records for t in r.tables})
-    g = graph.build_graph(all_tables, table_cooc, join_rels, cooc_files)
+    g = graph.build_graph(
+        all_tables, table_cooc, join_rels, cooc_files, inferred_pairs
+    )
     communities = graph.detect_communities(g, resolution=resolution)
     clusters = graph.build_clusters(records, communities, join_rows)
     print(f"      {len(communities)} cluster(s) over {len(all_tables)} table(s)")

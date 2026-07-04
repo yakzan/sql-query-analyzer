@@ -45,6 +45,7 @@ def _resolve_columns(
     resolution: dict[int, ColumnRef] = {}
     real_tables: set[str] = set()
     star_refs: list[ColumnRef] = []
+    scope_meta: dict[int, tuple[frozenset[str], bool]] = {}
 
     try:
         scopes = traverse_scope(expression)
@@ -68,7 +69,11 @@ def _resolve_columns(
             else None
         )
 
+        scope_tables = frozenset(table_sources.values())
+        has_derived = bool(derived_sources)
+
         for col in scope.columns:
+            scope_meta[id(col)] = (scope_tables, has_derived)
             qualifier = col.table
             if qualifier:
                 if qualifier in table_sources:
@@ -92,11 +97,44 @@ def _resolve_columns(
                         for name in sorted(catalog[t])
                     )
 
-    return resolution, real_tables, star_refs
+    return resolution, real_tables, star_refs, scope_meta
+
+
+def _infer_from_partner(
+    ref: ColumnRef,
+    partner_table: str,
+    meta: tuple[frozenset[str], bool] | None,
+    catalog: dict[str, set[str]] | None,
+) -> bool:
+    """A resolved join partner is evidence, not a hunch: joining a table's
+    column to itself is meaningless, so an ambiguous side very likely belongs
+    to another table in scope. Only infer when exactly one candidate remains
+    (via catalog, or by elimination in a derived-free scope), and label the
+    result join_inferred - visible, distinct, excludable."""
+    if meta is None:
+        return False
+    scope_tables, has_derived = meta
+    if has_derived:
+        return False
+    candidates = sorted(scope_tables - {partner_table})
+    if catalog:
+        with_col = [t for t in candidates if ref.name.lower() in catalog.get(t, set())]
+        if len(with_col) == 1:
+            ref.table = with_col[0]
+            ref.status = "join_inferred"
+            return True
+    if len(candidates) == 1:
+        ref.table = candidates[0]
+        ref.status = "join_inferred"
+        return True
+    return False
 
 
 def _extract_joins(
-    expression: exp.Expression, resolution: dict[int, ColumnRef]
+    expression: exp.Expression,
+    resolution: dict[int, ColumnRef],
+    scope_meta: dict[int, tuple[frozenset[str], bool]],
+    catalog: dict[str, set[str]] | None = None,
 ) -> tuple[list[JoinEdge], set[int]]:
     joins: list[JoinEdge] = []
     join_col_ids: set[int] = set()
@@ -106,13 +144,26 @@ def _extract_joins(
             continue
         lref = resolution.get(id(left))
         rref = resolution.get(id(right))
-        if not (lref and rref and lref.table and rref.table):
+        if not (lref and rref):
+            continue
+        if lref.table and rref.status == "ambiguous":
+            _infer_from_partner(rref, lref.table, scope_meta.get(id(right)), catalog)
+        elif rref.table and lref.status == "ambiguous":
+            _infer_from_partner(lref, rref.table, scope_meta.get(id(left)), catalog)
+        if not (lref.table and rref.table):
             continue
         if lref.table == rref.table:
             continue
         join_col_ids.add(id(left))
         join_col_ids.add(id(right))
-        joins.append(JoinEdge(lref.table, rref.table, lref.name, rref.name))
+        inference = (
+            "partner"
+            if "join_inferred" in (lref.status, rref.status)
+            else ""
+        )
+        joins.append(
+            JoinEdge(lref.table, rref.table, lref.name, rref.name, inference)
+        )
     return joins, join_col_ids
 
 
@@ -295,12 +346,14 @@ def extract_record(
         return record
 
     try:
-        resolution, real_tables, star_refs = _resolve_columns(
+        resolution, real_tables, star_refs, scope_meta = _resolve_columns(
             analyzed, catalog=catalog, star_tables=star_tables
         )
         if catalog is not None:
             _apply_catalog_resolution(resolution, real_tables, catalog)
-        joins, join_col_ids = _extract_joins(analyzed, resolution)
+        joins, join_col_ids = _extract_joins(
+            analyzed, resolution, scope_meta, catalog=catalog
+        )
         _assign_context(analyzed, resolution, join_col_ids)
 
         record.tables = sorted(real_tables)

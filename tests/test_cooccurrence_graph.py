@@ -22,7 +22,9 @@ def test_table_cooccurrence_counts():
 def test_join_edges_aggregated():
     recs = records_for(ORDERS, ORDERS)
     edges = cooccurrence.join_edges(recs)
-    assert edges == [("core.customers", "sales.orders", "customer_id", "customer_id", 2)]
+    assert edges == [
+        ("core.customers", "sales.orders", "customer_id", "customer_id", 2, "")
+    ]
 
 
 def _graph_for(recs):

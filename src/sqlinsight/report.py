@@ -46,7 +46,7 @@ def _write_sqlite(path: Path, records: list[QueryRecord], stat_tables: dict) -> 
     )
     cur.execute(
         "CREATE TABLE joins(file TEXT, stmt_index INT, left_table TEXT, right_table TEXT,"
-        " left_col TEXT, right_col TEXT)"
+        " left_col TEXT, right_col TEXT, inference TEXT)"
     )
     cur.execute(
         "CREATE TABLE ctes(name TEXT, file TEXT, stmt_index INT, tables TEXT,"
@@ -69,8 +69,9 @@ def _write_sqlite(path: Path, records: list[QueryRecord], stat_tables: dict) -> 
              for c in rec.columns],
         )
         cur.executemany(
-            "INSERT INTO joins VALUES(?,?,?,?,?,?)",
-            [(rec.file, rec.stmt_index, j.left_table, j.right_table, j.left_col, j.right_col)
+            "INSERT INTO joins VALUES(?,?,?,?,?,?,?)",
+            [(rec.file, rec.stmt_index, j.left_table, j.right_table, j.left_col,
+              j.right_col, j.inference)
              for j in rec.joins],
         )
         cur.executemany(
@@ -124,7 +125,11 @@ def _graph_html(path: Path, g: nx.Graph, communities: list[list[str]]) -> None:
                      size=12 + 4 * deg, title=f"{node} - {deg} join relationship(s)")
     for a, b, data in join_edges_only:
         n = data.get("joins", 0)
-        net.add_edge(a, b, value=n, width=1 + n, title=f"{n} join(s)")
+        inferred = data.get("inferred", False)
+        net.add_edge(
+            a, b, value=n, width=1 + n, dashes=inferred,
+            title=f"{n} join(s)" + (" (partner-inferred)" if inferred else ""),
+        )
 
     net.write_html(str(path), notebook=False, open_browser=False)
     _inject_legend(path, communities)
@@ -184,7 +189,9 @@ def write_report(
         "table_frequency.csv": (["table", "n_queries"], table_freq),
         "table_cooccurrence.csv": (["table_a", "table_b", "count"], table_cooc),
         "column_cooccurrence.csv": (["column_a", "column_b", "count"], col_cooc),
-        "join_edges.csv": (["left_table", "right_table", "left_col", "right_col", "count"], join_rows),
+        "join_edges.csv": (
+            ["left_table", "right_table", "left_col", "right_col", "count",
+             "inference"], join_rows),
         "repeated_logic.csv": (
             ["match_type", "key", "occurrences", "distinct_files", "similarity",
              "unit_types", "unit_names", "files", "tables", "sample_sql"], repeated),
@@ -244,8 +251,11 @@ def write_report(
                          "tables", "sample_sql"], repeated,
                         sql_cols=("sample_sql",)),
         _table_section("Join edges",
-                        "How often each table pair is joined, and on which keys.",
-                        ["left_table", "right_table", "left_col", "right_col", "count"],
+                        "How often each table pair is joined, and on which keys. "
+                        "'partner' = one side was ambiguous and inferred from its "
+                        "resolved join partner (evidence-based, never silent).",
+                        ["left_table", "right_table", "left_col", "right_col",
+                         "count", "inference"],
                         join_rows),
         _table_section("Table co-occurrence",
                         "Table pairs appearing in the same query.",

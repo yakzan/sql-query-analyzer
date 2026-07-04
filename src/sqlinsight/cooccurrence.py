@@ -74,12 +74,25 @@ def join_relationships(records: list[QueryRecord]) -> list[tuple[str, str, int]]
     )
 
 
-def join_edges(records: list[QueryRecord]) -> list[tuple[str, str, str, str, int]]:
-    counter: Counter[tuple[str, str, str, str]] = Counter()
+def join_edges(
+    records: list[QueryRecord],
+) -> list[tuple[str, str, str, str, int, str]]:
+    counter: Counter[tuple[str, str, str, str, str]] = Counter()
     for rec in records:
         for j in rec.joins:
-            counter[j.canonical()] += 1
+            counter[j.canonical() + (j.inference,)] += 1
     return sorted(
-        ((lt, rt, lc, rc, n) for (lt, rt, lc, rc), n in counter.items()),
-        key=lambda r: (-r[4], r[0], r[1]),
+        ((lt, rt, lc, rc, n, inf) for (lt, rt, lc, rc, inf), n in counter.items()),
+        key=lambda r: (-r[4], r[0], r[1], r[2], r[3], r[5]),
     )
+
+
+def partner_inferred_pairs(records: list[QueryRecord]) -> set[tuple[str, str]]:
+    """Table pairs whose every observed join was partner-inferred; rendered
+    distinctly so inferred structure is never mistaken for stated structure."""
+    inferences: dict[tuple[str, str], set[str]] = {}
+    for rec in records:
+        for j in rec.joins:
+            pair = tuple(sorted((j.left_table, j.right_table)))
+            inferences.setdefault(pair, set()).add(j.inference)
+    return {pair for pair, infs in inferences.items() if infs == {"partner"}}

@@ -18,6 +18,7 @@ class JoinEdge:
     right_table: str
     left_col: str
     right_col: str
+    inference: str = ""  # "" (both sides resolved) | "partner"
 
     def canonical(self) -> tuple[str, str, str, str]:
         a = (self.left_table, self.left_col)
