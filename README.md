@@ -67,6 +67,15 @@ Then open `output/report.html`.
 uv run pytest -q
 ```
 
+End-to-end tests prove determinism (two runs must be byte-identical) and
+compare `clusters.csv` / `repeated_logic.csv` against golden snapshots in
+`tests/golden/`. When an intended behavior change shifts those outputs,
+refresh the goldens deliberately and review the diff:
+
+```bash
+UPDATE_GOLDENS=1 uv run pytest -q
+```
+
 ## Architecture & roadmap
 
 - `docs/architecture.html` - self-contained interactive explainer of the

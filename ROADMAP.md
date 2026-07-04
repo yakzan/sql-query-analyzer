@@ -11,17 +11,17 @@ Legend: `[ ]` pending, `[x]` done. Update the **Status** line per step as you go
 
 ## Step 1 - Determinism + end-to-end snapshot tests
 
-**Status:** not started
+**Status:** done (2026-07-04)
 **Why first:** determinism is the flagship guarantee but nothing proves it;
 a snapshot harness makes every later diff reviewable.
 
-- [ ] Add `tests/test_e2e.py` running `cli.run("examples", tmpdir)` end to end
-- [ ] Determinism test: run pipeline twice into two tmpdirs, compare all CSVs byte-for-byte
-- [ ] Compare `inventory.sqlite` between runs (dump each table ordered, compare dumps)
-- [ ] Compare `report.html` and `graph.html` between runs (assert byte equality)
-- [ ] Add golden snapshots for `clusters.csv` and `repeated_logic.csv` under `tests/golden/`
-- [ ] Assert emitted files exactly match golden snapshots (regenerate via a documented flag or helper)
-- [ ] Document in README how to intentionally refresh goldens
+- [x] Add `tests/test_e2e.py` running `cli.run("examples", tmpdir)` end to end
+- [x] Determinism test: run pipeline twice into two tmpdirs, compare all CSVs byte-for-byte
+- [x] Compare `inventory.sqlite` between runs (dump each table ordered, compare dumps)
+- [x] Compare `report.html` and `graph.html` between runs (assert byte equality)
+- [x] Add golden snapshots for `clusters.csv` and `repeated_logic.csv` under `tests/golden/`
+- [x] Assert emitted files exactly match golden snapshots (regenerate via `UPDATE_GOLDENS=1`)
+- [x] Document in README how to intentionally refresh goldens
 
 **Acceptance:** `uv run pytest -q` proves two runs are byte-identical and
 output changes show up as golden diffs.
