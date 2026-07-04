@@ -49,8 +49,9 @@ def _write_sqlite(path: Path, records: list[QueryRecord], stat_tables: dict) -> 
         " left_col TEXT, right_col TEXT, inference TEXT)"
     )
     cur.execute(
-        "CREATE TABLE ctes(name TEXT, file TEXT, stmt_index INT, tables TEXT,"
-        " output_columns TEXT, exact_hash TEXT, signature TEXT)"
+        "CREATE TABLE logic_units(name TEXT, file TEXT, stmt_index INT,"
+        " unit_type TEXT, tables TEXT, output_columns TEXT, exact_hash TEXT,"
+        " signature TEXT)"
     )
     for rec in records:
         cur.execute(
@@ -75,10 +76,10 @@ def _write_sqlite(path: Path, records: list[QueryRecord], stat_tables: dict) -> 
              for j in rec.joins],
         )
         cur.executemany(
-            "INSERT INTO ctes VALUES(?,?,?,?,?,?,?)",
-            [(c.name, c.file, c.stmt_index, ", ".join(c.tables),
+            "INSERT INTO logic_units VALUES(?,?,?,?,?,?,?,?)",
+            [(c.name, c.file, c.stmt_index, c.unit_type, ", ".join(c.tables),
               ", ".join(c.output_columns), c.exact_hash, c.signature)
-             for c in rec.ctes],
+             for c in (*rec.ctes, *rec.subqueries)],
         )
     for name, (header, rows) in stat_tables.items():
         cols = ", ".join(f'"{h}" TEXT' for h in header)

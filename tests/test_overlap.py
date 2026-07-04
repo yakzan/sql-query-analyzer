@@ -1,6 +1,9 @@
+import sqlite3
+
 from conftest import records_for
 
 from sqlinsight import overlap
+from sqlinsight.report import _write_sqlite
 
 CTE = """
 with mo as (
@@ -91,6 +94,33 @@ def test_tiny_subquery_ignored():
     query = "select a from (select a from t1) x"
     recs = records_for(query, query)
     assert all(r.subqueries == [] for r in recs)
+
+
+def test_logic_units_table_persists_ctes_and_subqueries(tmp_path):
+    subq = """
+    select t.customer_id, t.total
+    from (
+        select o.customer_id, o.region_id, sum(o.amount) as total,
+               count(*) as order_count, max(o.order_date) as last_order
+        from sales.orders o
+        where o.status = 'completed' and o.amount > 0
+        group by o.customer_id, o.region_id
+    ) t
+    where t.total > 100
+    """
+    recs = records_for(CTE, subq)
+    db = tmp_path / "inventory.sqlite"
+    _write_sqlite(db, recs, {})
+    con = sqlite3.connect(db)
+    try:
+        rows = con.execute(
+            "select unit_type, count(*) from logic_units group by unit_type"
+        ).fetchall()
+    finally:
+        con.close()
+    counts = dict(rows)
+    assert counts.get("cte", 0) >= 1
+    assert counts.get("subquery", 0) >= 1
 
 
 def test_grouping_is_order_independent():

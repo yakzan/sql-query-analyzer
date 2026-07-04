@@ -36,7 +36,7 @@ Normalized inventory tables:
 | `query_tables` | file, stmt_index, table_name |
 | `columns` | file, stmt_index, table_name, column_name, status, context |
 | `joins` | file, stmt_index, left_table, right_table, left_col, right_col, inference |
-| `ctes` | name, file, stmt_index, tables, output_columns, exact_hash, signature |
+| `logic_units` | name, file, stmt_index, unit_type (`cte`/`subquery`), tables, output_columns, exact_hash, signature |
 
 Plus one table per CSV (`table_frequency`, `table_cooccurrence`,
 `column_cooccurrence`, `join_edges`, `repeated_logic`, `clusters`) with the

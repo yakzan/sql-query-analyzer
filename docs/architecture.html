@@ -605,7 +605,8 @@ masked:     ... where o.created_at > <span class="c">?</span>        (12 tokens,
       <ol>
         <li>CSVs: fixed headers, pre-sorted rows.</li>
         <li><code>inventory.sqlite</code>: queries (with kind + target_table), query_tables,
-            columns (status + context), joins (with inference), ctes, plus one table per CSV.</li>
+            columns (status + context), joins (with inference), logic_units (CTEs + inline
+            subqueries, tagged by unit_type), plus one table per CSV.</li>
         <li><code>parse_errors.log</code>: file#stmt + error, or "none".</li>
         <li><code>graph.html</code>: <b>join edges only</b> (the full co-occurrence graph is an
             unreadable hairball), sorted by (-joins, a, b) and capped at
