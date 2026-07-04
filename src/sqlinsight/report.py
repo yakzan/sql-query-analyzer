@@ -93,7 +93,9 @@ def _write_sqlite(path: Path, records: list[QueryRecord], stat_tables: dict) -> 
     con.close()
 
 
-def _graph_html(path: Path, g: nx.Graph, communities: list[list[str]]) -> None:
+def _graph_html(
+    path: Path, g: nx.Graph, communities: list[list[str]], max_edges: int = 200
+) -> None:
     color_of: dict[str, str] = {}
     for i, members in enumerate(communities):
         for m in members:
@@ -101,9 +103,18 @@ def _graph_html(path: Path, g: nx.Graph, communities: list[list[str]]) -> None:
 
     # Only draw join edges (real relationships); the full co-occurrence graph
     # connects every table pair in a query and produces an unreadable hairball.
-    join_edges_only = [
-        (a, b, data) for a, b, data in g.edges(data=True) if data.get("joins", 0) > 0
-    ]
+    join_edges_only = sorted(
+        ((a, b, data) for a, b, data in g.edges(data=True) if data.get("joins", 0) > 0),
+        key=lambda e: (-e[2].get("joins", 0), e[0], e[1]),
+    )
+    total_join_edges = len(join_edges_only)
+    join_edges_only = join_edges_only[:max_edges]
+    truncation_note = (
+        f"Showing top {len(join_edges_only)} of {total_join_edges} join edges "
+        f"by frequency; see join_edges.csv for the full set."
+        if total_join_edges > len(join_edges_only)
+        else ""
+    )
     join_degree: dict[str, int] = {n: 0 for n in g.nodes()}
     for a, b, _ in join_edges_only:
         join_degree[a] += 1
@@ -132,10 +143,12 @@ def _graph_html(path: Path, g: nx.Graph, communities: list[list[str]]) -> None:
         )
 
     net.write_html(str(path), notebook=False, open_browser=False)
-    _inject_legend(path, communities)
+    _inject_legend(path, communities, truncation_note)
 
 
-def _inject_legend(path: Path, communities: list[list[str]]) -> None:
+def _inject_legend(
+    path: Path, communities: list[list[str]], truncation_note: str = ""
+) -> None:
     items = []
     for i, members in enumerate(communities):
         color = _PALETTE[i % len(_PALETTE)]
@@ -144,6 +157,11 @@ def _inject_legend(path: Path, communities: list[list[str]]) -> None:
             f'<span style="width:12px;height:12px;border-radius:50%;background:{color};'
             f'display:inline-block"></span>Cluster {i} ({len(members)} tables)</div>'
         )
+    note = (
+        f'<div style="color:#b45309;margin-top:6px">{truncation_note}</div>'
+        if truncation_note
+        else ""
+    )
     legend = (
         '<div style="position:fixed;top:12px;right:12px;z-index:999;background:#fff;'
         'border:1px solid #dfe6ee;border-radius:10px;padding:12px 14px;'
@@ -152,8 +170,10 @@ def _inject_legend(path: Path, communities: list[list[str]]) -> None:
         '<div style="font-weight:700;margin-bottom:6px">Cluster legend</div>'
         + "".join(items)
         + '<div style="color:#5b6b7b;margin-top:8px;border-top:1px solid #eef2f6;'
-        'padding-top:6px">Edges = join relationships. Node size = number of joins. '
-        'Hover for details.</div></div>'
+        'padding-top:6px">Edges = join relationships (dashed = partner-inferred). '
+        'Node size = number of joins. Hover for details.</div>'
+        + note
+        + "</div>"
     )
     html = path.read_text(encoding="utf-8")
     html = html.replace("</body>", legend + "\n</body>", 1)
@@ -182,6 +202,7 @@ def write_report(
     clusters,
     g: nx.Graph,
     communities: list[list[str]],
+    max_graph_edges: int = 200,
 ) -> None:
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -211,7 +232,7 @@ def write_report(
         encoding="utf-8",
     )
 
-    _graph_html(outdir / "graph.html", g, communities)
+    _graph_html(outdir / "graph.html", g, communities, max_edges=max_graph_edges)
 
     parsed_ok = sum(1 for r in records if r.parse_ok)
     total = len(records) or 1

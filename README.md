@@ -13,14 +13,39 @@ need human judgment.
 
 For a corpus of `.sql` files it emits (into `output/`):
 
+- `inventory.sqlite` - **the primary artifact**: normalized records plus every
+  stat table, ready for ad-hoc SQL (schema below)
 - `report.html` - browsable summary with sortable/searchable tables
-- `graph.html` - interactive join graph (offline), nodes colored by cluster
-- `inventory.sqlite` - normalized records (queries, tables, columns, joins, ctes) + all stat tables
+- `graph.html` - interactive join graph (offline), nodes colored by cluster,
+  dashed edges = partner-inferred, capped at the top `--graph-edges` (default
+  200) join edges by frequency
 - `table_frequency.csv`, `table_cooccurrence.csv`, `column_cooccurrence.csv`
-- `join_edges.csv` - table pairs and the keys they join on, with frequency
+- `join_edges.csv` - table pairs and the keys they join on, with frequency and
+  an `inference` flag for partner-inferred edges
 - `repeated_logic.csv` - reused CTE/inline-subquery blocks (`exact` = identical SQL, `near_dupe` = token-level similar with literals masked), ranked by occurrences x similarity
-- `clusters.csv` - communities of tightly-coupled tables
+- `clusters.csv` - communities of join-coupled tables (suggestions, not models)
 - `parse_errors.log`
+
+### inventory.sqlite schema
+
+Normalized inventory tables:
+
+| table | columns |
+|---|---|
+| `queries` | file, stmt_index, parse_ok, dialect, error, kind, target_table, n_tables, n_joins, n_ctes |
+| `query_tables` | file, stmt_index, table_name |
+| `columns` | file, stmt_index, table_name, column_name, status, context |
+| `joins` | file, stmt_index, left_table, right_table, left_col, right_col, inference |
+| `ctes` | name, file, stmt_index, tables, output_columns, exact_hash, signature |
+
+Plus one table per CSV (`table_frequency`, `table_cooccurrence`,
+`column_cooccurrence`, `join_edges`, `repeated_logic`, `clusters`) with the
+same columns as the CSV headers. Example:
+
+```bash
+sqlite3 output/inventory.sqlite \
+  "select table_name, count(*) from columns where status='ambiguous' group by 1 order by 2 desc"
+```
 
 ## Requirements
 

@@ -15,6 +15,7 @@ def run(
     outdir: str,
     catalog_path: str | None = None,
     resolution: float = 1.0,
+    graph_edges: int = 200,
 ) -> int:
     src_path = Path(source)
     if not src_path.exists():
@@ -73,6 +74,7 @@ def run(
     report.write_report(
         Path(outdir), source, records, refine_stats, table_freq, table_cooc,
         col_cooc, join_rows, repeated, clusters, g, communities,
+        max_graph_edges=graph_edges,
     )
     print("done. open", str(Path(outdir) / "report.html"))
     return 0
@@ -98,9 +100,20 @@ def main(argv: list[str] | None = None) -> int:
         help="community detection resolution; > 1.0 favors more, smaller"
              " clusters (default 1.0)",
     )
+    parser.add_argument(
+        "--graph-edges",
+        type=int,
+        default=200,
+        help="cap graph.html to the top-K join edges by frequency; the full"
+             " set is always in join_edges.csv (default 200)",
+    )
     args = parser.parse_args(argv)
     return run(
-        args.source, args.out, catalog_path=args.catalog, resolution=args.resolution
+        args.source,
+        args.out,
+        catalog_path=args.catalog,
+        resolution=args.resolution,
+        graph_edges=args.graph_edges,
     )
 
 

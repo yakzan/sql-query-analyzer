@@ -173,11 +173,11 @@ it on a real corpus.
 
 ## Step 8 - Report layer simplification (lowest priority)
 
-**Status:** not started
+**Status:** done (2026-07-04)
 
-- [ ] Declare `inventory.sqlite` the primary artifact; document its schema in README
-- [ ] Graph at scale: render only top-K join edges by weight (`--graph-edges`, default 200) with a truncation note
-- [ ] Freeze the HTML report feature set (no new features; keep CSVs and summary)
+- [x] Declare `inventory.sqlite` the primary artifact; document its schema in README
+- [x] Graph at scale: render only top-K join edges by frequency (`--graph-edges`, default 200) with a truncation note in the legend
+- [x] Freeze the HTML report feature set (no new features; keep CSVs and summary)
 
 **Acceptance:** artifacts stay useful at 100 files; sqlite is the documented
 source of truth.
