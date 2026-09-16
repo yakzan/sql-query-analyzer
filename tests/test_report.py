@@ -47,3 +47,28 @@ def test_graph_html_caps_edges_with_note(tmp_path):
     assert "Showing top 1 of 2 join edges" in html
     assert '"from": "a"' in html
     assert '"to": "c"' not in html
+
+
+def test_graph_html_escapes_script_terminators_and_is_offline(tmp_path):
+    payload = "</script><script>alert('graph-xss')</script>"
+    g = nx.Graph()
+    g.add_node(payload)
+    write_report(
+        outdir=tmp_path,
+        source="src",
+        records=[],
+        refine_stats={"catalog_resolved": 0, "still_ambiguous": 0},
+        table_freq=[],
+        table_cooc=[],
+        col_cooc=[],
+        join_rows=[],
+        repeated=[],
+        clusters=[],
+        g=g,
+        communities=[[payload]],
+    )
+
+    html = (tmp_path / "graph.html").read_text(encoding="utf-8")
+    assert payload not in html
+    assert '<script src="http' not in html
+    assert '<link href="http' not in html

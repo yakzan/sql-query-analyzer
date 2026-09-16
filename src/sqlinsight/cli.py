@@ -72,7 +72,7 @@ def run(
 
     print(f"[6/6] writing outputs to {outdir} ...")
     report.write_report(
-        Path(outdir), source, records, refine_stats, table_freq, table_cooc,
+        Path(outdir), src_path.name, records, refine_stats, table_freq, table_cooc,
         col_cooc, join_rows, repeated, clusters, g, communities,
         max_graph_edges=graph_edges,
     )

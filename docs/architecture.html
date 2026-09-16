@@ -250,19 +250,22 @@ const STAGES = [
         <div class="box"><b>Input</b>Directory of raw <code>.sql</code> files (recursed, sorted for determinism)</div>
         <div class="box"><b>Output</b><code>list[ParsedStatement]</code> - one entry per SQL statement, each holding a sqlglot AST or a recorded error</div>
       </div>
-      <p>Turns text into abstract syntax trees. sqlglot is used instead of regex because
-      1000-line nested-CTE queries need a real parser. Files are processed in sorted order
-      and failures never stop the run: an unparseable statement becomes a record with an
-      error string, and the pipeline continues.</p>`,
+      <p>Turns text into abstract syntax trees. A narrow preprocessor resolves static dbt
+      <code>ref()</code> and <code>source()</code> relation macros without evaluating arbitrary
+      Jinja; sqlglot then handles the SQL. Files are processed in sorted order and failures
+      never stop the run: an unparseable statement becomes a record with a privacy-safe
+      location-only error, and the pipeline continues.</p>`,
     algorithm: `
       <ol>
         <li>Collect files: <code>root.rglob("*.sql")</code>, <b>sorted</b> (determinism).</li>
+        <li>Replace static dbt <code>ref()</code> / <code>source()</code> calls and remove
+            <code>config()</code> plus Jinja comments. Other Jinja remains unsupported.</li>
         <li>Split each file into statements using the sqlglot <b>tokenizer</b> (splitting on
             semicolon <i>tokens</i>, so semicolons inside string literals do not split).</li>
         <li>For each statement, try <code>parse_one(stmt, read="redshift")</code>.</li>
         <li>On failure, retry with <code>read="postgres"</code> (per-statement fallback).</li>
         <li>If both fail, emit a <code>ParsedStatement</code> with <code>expression=None</code>
-            and the primary error text. <b>Never raise.</b></li>
+            and line/column only—not the SQL-bearing exception text. <b>Never raise.</b></li>
       </ol>`,
     example: `
       <p>The running example is one statement; Redshift parsing succeeds on the first try:</p>
@@ -429,7 +432,7 @@ columns = [(orders.amount, star_expanded), (orders.customer_id, star_expanded),
         <div class="box"><b>Input</b>Refined <code>list[QueryRecord]</code></div>
         <div class="box"><b>Output</b>Frequencies, pair counts, per-key join edges, collapsed join <i>relationships</i>, per-pair file counts</div>
       </div>
-      <p>Pure counting - the "exact facts" layer - but it now produces <b>two views of joins</b>
+      <p>Deterministic counting over statically extracted observations. It produces <b>two views of joins</b>
       for two consumers. <code>join_edges()</code> keeps per-key detail (which columns, how often,
       inferred or stated) for humans reading <code>join_edges.csv</code>.
       <code>join_relationships()</code> collapses composite keys to one relationship per table
@@ -604,10 +607,10 @@ masked:     ... where o.created_at > <span class="c">?</span>        (12 tokens,
     algorithm: `
       <ol>
         <li>CSVs: fixed headers, pre-sorted rows.</li>
-        <li><code>inventory.sqlite</code>: queries (with kind + target_table), query_tables,
+        <li><code>inventory.sqlite</code>: versioned, indexed, and typed; queries (with kind + target_table), query_tables,
             columns (status + context), joins (with inference), logic_units (CTEs + inline
             subqueries, tagged by unit_type), plus one table per CSV.</li>
-        <li><code>parse_errors.log</code>: file#stmt + error, or "none".</li>
+        <li><code>parse_errors.log</code>: portable file#stmt + privacy-safe error location, or "none".</li>
         <li><code>graph.html</code>: <b>join edges only</b> (the full co-occurrence graph is an
             unreadable hairball), sorted by (-joins, a, b) and capped at
             <code>--graph-edges</code> (default 200) with a truncation note in the legend
@@ -615,7 +618,7 @@ masked:     ... where o.created_at > <span class="c">?</span>        (12 tokens,
             color = cluster. <code>cdn_resources="in_line"</code>: works offline.</li>
         <li><code>report.html</code>: Jinja with autoescape ON; headline metrics now include
             <b>statement kinds</b> and <b>catalog source</b>, so skipped DDL and inference basis
-            are visible at a glance.</li>
+            are visible at a glance. Repeated-logic samples mask string and numeric literals.</li>
       </ol>`,
     example: `
       <p>The running example's footprint across the artifacts:</p>

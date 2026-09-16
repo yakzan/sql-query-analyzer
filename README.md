@@ -5,9 +5,9 @@ queries, extracts a structured inventory (tables, columns, joins, CTEs), and
 produces co-occurrence statistics, repeated-logic detection, and cluster
 suggestions to help dbt designers find where to start modeling.
 
-It is **decision support, not auto-modeling**. The extraction and co-occurrence
-layers are exact facts; the clusters are heuristic starting points that still
-need human judgment.
+It is **decision support, not auto-modeling**. Extraction and co-occurrence are
+static observations subject to parser and catalog coverage; clusters are
+heuristic starting points that still need human judgment.
 
 ## What it produces
 
@@ -32,6 +32,7 @@ Normalized inventory tables:
 
 | table | columns |
 |---|---|
+| `schema_info` | schema version for consumers |
 | `queries` | file, stmt_index, parse_ok, dialect, error, kind, target_table, n_tables, n_joins, n_ctes |
 | `query_tables` | file, stmt_index, table_name |
 | `columns` | file, stmt_index, table_name, column_name, status, context |
@@ -40,7 +41,8 @@ Normalized inventory tables:
 
 Plus one table per CSV (`table_frequency`, `table_cooccurrence`,
 `column_cooccurrence`, `join_edges`, `repeated_logic`, `clusters`) with the
-same columns as the CSV headers. Example:
+same columns as the CSV headers. Counts and similarity values use numeric
+SQLite types, and common table/column/join/hash lookups are indexed. Example:
 
 ```bash
 sqlite3 output/inventory.sqlite \
@@ -83,7 +85,9 @@ Then open `output/report.html`.
 
 ## How it works
 
-1. **Parse** - `sqlglot` (Redshift, Postgres fallback); unparseable files are logged and skipped, never crashing the run.
+1. **Parse** - static dbt `ref()` / `source()` relation macros are resolved,
+   then `sqlglot` parses Redshift with a Postgres fallback. Unparseable files
+   are logged with location-only errors and skipped, never crashing the run.
 2. **Extract** - scope analysis attributes columns to their physical source table and distinguishes real tables from CTE/subquery aliases.
 3. **Infer catalog** - because no schema catalog is assumed, a `table -> columns` map is bootstrapped from qualified references across the corpus, then a second pass resolves some otherwise-ambiguous columns. Genuinely ambiguous columns are flagged, not guessed.
 4. **Co-occurrence + overlap** - table/column co-occurrence and repeated-logic detection.
@@ -114,6 +118,19 @@ A scale gate (`uv run pytest -m slow`) runs the full pipeline on a seeded
 composite keys, wide queries, inserts) and asserts recall, runtime, artifact
 size, cluster shape, and determinism.
 
+## Security and privacy
+
+Analysis is local and generated HTML has no runtime network dependency. Output
+paths are portable corpus-relative paths; parser errors omit SQL excerpts; and
+the SQL samples in `repeated_logic.csv` / `report.html` replace string and
+numeric literals with `?`.
+
+Artifacts still contain structural metadata—including file, schema, table,
+and column names—because that is the product's purpose. Treat the output
+directory as sensitive warehouse metadata and review it before sharing. Raw
+SQL is not emitted, but identifiers and hashes can still disclose internal
+structure.
+
 ## Architecture & roadmap
 
 - `docs/architecture.html` - self-contained interactive explainer of the
@@ -127,7 +144,10 @@ size, cluster shape, and determinism.
 
 ## Known limitations
 
-Each limitation maps to a planned fix in `ROADMAP.md`:
-
-- `SELECT *` columns stay opaque unless a real schema catalog is provided via `--catalog` (step 3).
+- `SELECT *` columns stay opaque unless a real schema catalog is provided via `--catalog`.
 - Inline subqueries under ~25 tokens are not fingerprinted for overlap (deliberate noise filter).
+- Only static dbt `ref()` / `source()` calls are preprocessed. Arbitrary Jinja,
+  dynamic SQL, stored procedures, and macros are not evaluated.
+- Signal quality is tested on a seeded synthetic corpus, not yet on labeled
+  production corpora. Repeated-logic and cluster suggestions require human
+  validation; no precision claim is made.

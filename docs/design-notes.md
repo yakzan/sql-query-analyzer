@@ -154,9 +154,9 @@ revisit after step 7's scale corpus provides real numbers).
   re-hashes every CTE per record (~2x extraction). Worth a targeted in-place
   update plus a join re-extraction, or is the rebuild's simplicity worth the
   cost even at 100 files?
-- **Parse-error locus.** `parse_errors.log` carries no line/column, though
-  sqlglot knows token positions. Is surfacing the position worth the extra
-  plumbing for human triage of failures?
+- **Parse-error locus (resolved).** `parse_errors.log` now carries line/column
+  while deliberately omitting source excerpts and literals from exception
+  messages, preserving useful triage without leaking SQL into artifacts.
 - **Caching.** Re-runs re-parse everything. For an iterative tool (add a file,
   re-run), is mtime+content-hash AST caching worth it, or premature at this
   corpus size?

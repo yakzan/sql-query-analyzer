@@ -62,6 +62,20 @@ def test_changed_literals_still_near_dupe():
     assert rows[0]["match_type"] == "near_dupe"
 
 
+def test_repeated_logic_sample_masks_literal_values():
+    secret = "customer-secret-O''Reilly"
+    query = CTE_NEAR_DUP.replace("completed", secret).replace(
+        "group by o.customer_id",
+        "group by o.customer_id having sum(o.amount) > 6.022e23",
+    )
+    rows = overlap.repeated_logic(records_for(query, query))
+
+    assert len(rows) == 1
+    assert secret not in rows[0]["sample_sql"]
+    assert "6.022" not in rows[0]["sample_sql"]
+    assert "?" in rows[0]["sample_sql"]
+
+
 def test_unrelated_ctes_not_grouped():
     rows = overlap.repeated_logic(records_for(CTE, CTE_UNRELATED))
     assert rows == []
@@ -121,6 +135,33 @@ def test_logic_units_table_persists_ctes_and_subqueries(tmp_path):
     counts = dict(rows)
     assert counts.get("cte", 0) >= 1
     assert counts.get("subquery", 0) >= 1
+
+
+def test_inventory_uses_versioned_typed_schema(tmp_path):
+    db = tmp_path / "inventory.sqlite"
+    stat_tables = {
+        "table_frequency": (["table", "n_queries"], [("sales.orders", 2)]),
+        "repeated_logic": (
+            ["match_type", "occurrences", "distinct_files", "similarity"],
+            [("exact", 2, 2, "1.00")],
+        ),
+    }
+    _write_sqlite(db, records_for(CTE), stat_tables)
+    con = sqlite3.connect(db)
+    try:
+        assert con.execute("select version from schema_info").fetchone() == (1,)
+        freq_types = dict(
+            (row[1], row[2])
+            for row in con.execute("pragma table_info(table_frequency)")
+        )
+        repeated_types = dict(
+            (row[1], row[2])
+            for row in con.execute("pragma table_info(repeated_logic)")
+        )
+    finally:
+        con.close()
+    assert freq_types["n_queries"] == "INTEGER"
+    assert repeated_types["similarity"] == "REAL"
 
 
 def test_grouping_is_order_independent():

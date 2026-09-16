@@ -372,7 +372,8 @@ def extract_record(
         record.ctes = _extract_ctes(analyzed, stmt.file, stmt.stmt_index)
         record.subqueries = _extract_subqueries(analyzed, stmt.file, stmt.stmt_index)
     except Exception as exc:  # noqa: BLE001 - keep partial result, never crash run
-        record.error = f"extract: {type(exc).__name__}: {exc}"
+        # Exception messages from parsers can contain source SQL and literal values.
+        record.error = f"extract: {type(exc).__name__}"
     return record
 
 

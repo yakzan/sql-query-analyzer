@@ -37,8 +37,11 @@ _PERM_PARAMS = [
     for _ in range(MINHASH_PERMS)
 ]
 
-_STRING_LITERAL = re.compile(r"'[^']*'")
-_NUMBER_LITERAL = re.compile(r"\b\d+(?:\.\d+)?\b")
+_STRING_LITERAL = re.compile(r"'(?:''|[^'])*'")
+_NUMBER_LITERAL = re.compile(
+    r"(?<![\w$])(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?(?![\w$])",
+    re.IGNORECASE,
+)
 
 
 def collect_units(records: list[QueryRecord]) -> list[CteInfo]:
@@ -182,7 +185,9 @@ def _row(group: list[tuple[CteInfo, _Fingerprint]]) -> dict:
     names = sorted({u.name for u in members})
     types = sorted({u.unit_type for u in members})
     tables = sorted({t for u in members for t in u.tables})
-    sample = min(members, key=lambda u: (u.file, u.stmt_index, u.name)).normalized_sql
+    sample = _mask_literals(
+        min(members, key=lambda u: (u.file, u.stmt_index, u.name)).normalized_sql
+    )
     if len(sample) > 600:
         sample = sample[:600] + " ..."
     return {

@@ -1,7 +1,7 @@
 [project]
 name = "sqlinsight"
 version = "0.1.0"
-description = "Add your description here"
+description = "Deterministic SQL-estate analysis for dbt migration planning"
 readme = "README.md"
 authors = [
     { name = "yakzan", email = "yakzan@users.noreply.github.com" }

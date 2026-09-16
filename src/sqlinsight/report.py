@@ -20,6 +20,19 @@ _PALETTE = [
     "#0891b2", "#db2777", "#65a30d", "#475569", "#ca8a04",
 ]
 
+_STAT_COLUMN_TYPES = {
+    "table_frequency": {"n_queries": "INTEGER"},
+    "table_cooccurrence": {"count": "INTEGER"},
+    "column_cooccurrence": {"count": "INTEGER"},
+    "join_edges": {"count": "INTEGER"},
+    "repeated_logic": {
+        "occurrences": "INTEGER",
+        "distinct_files": "INTEGER",
+        "similarity": "REAL",
+    },
+    "clusters": {"cluster_id": "INTEGER", "size": "INTEGER"},
+}
+
 
 def _write_csv(path: Path, header: list[str], rows: list) -> None:
     with path.open("w", newline="", encoding="utf-8") as fh:
@@ -34,10 +47,12 @@ def _write_sqlite(path: Path, records: list[QueryRecord], stat_tables: dict) -> 
         path.unlink()
     con = sqlite3.connect(path)
     cur = con.cursor()
+    cur.execute("CREATE TABLE schema_info(version INTEGER NOT NULL)")
+    cur.execute("INSERT INTO schema_info VALUES(1)")
     cur.execute(
         "CREATE TABLE queries(file TEXT, stmt_index INT, parse_ok INT, dialect TEXT,"
         " error TEXT, kind TEXT, target_table TEXT, n_tables INT, n_joins INT,"
-        " n_ctes INT)"
+        " n_ctes INT, PRIMARY KEY(file, stmt_index))"
     )
     cur.execute("CREATE TABLE query_tables(file TEXT, stmt_index INT, table_name TEXT)")
     cur.execute(
@@ -82,7 +97,8 @@ def _write_sqlite(path: Path, records: list[QueryRecord], stat_tables: dict) -> 
              for c in (*rec.ctes, *rec.subqueries)],
         )
     for name, (header, rows) in stat_tables.items():
-        cols = ", ".join(f'"{h}" TEXT' for h in header)
+        types = _STAT_COLUMN_TYPES.get(name, {})
+        cols = ", ".join(f'"{h}" {types.get(h, "TEXT")}' for h in header)
         cur.execute(f'CREATE TABLE "{name}"({cols})')
         placeholders = ",".join("?" * len(header))
         cur.executemany(
@@ -90,6 +106,10 @@ def _write_sqlite(path: Path, records: list[QueryRecord], stat_tables: dict) -> 
             [tuple(r[h] if isinstance(r, dict) else r[i] for i, h in enumerate(header))
              for r in rows],
         )
+    cur.execute("CREATE INDEX idx_query_tables_table ON query_tables(table_name)")
+    cur.execute("CREATE INDEX idx_columns_table_column ON columns(table_name, column_name)")
+    cur.execute("CREATE INDEX idx_joins_tables ON joins(left_table, right_table)")
+    cur.execute("CREATE INDEX idx_logic_units_hash ON logic_units(exact_hash)")
     con.commit()
     con.close()
 
