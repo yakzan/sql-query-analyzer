@@ -20,8 +20,10 @@ from __future__ import annotations
 
 import hashlib
 import random
-import re
 from collections import defaultdict
+
+from sqlglot import Dialect
+from sqlglot.tokens import TokenType
 
 from .models import CteInfo, QueryRecord
 
@@ -37,12 +39,6 @@ _PERM_PARAMS = [
     for _ in range(MINHASH_PERMS)
 ]
 
-_STRING_LITERAL = re.compile(r"'(?:''|[^'])*'")
-_NUMBER_LITERAL = re.compile(
-    r"(?<![\w$])(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?(?![\w$])",
-    re.IGNORECASE,
-)
-
 
 def collect_units(records: list[QueryRecord]) -> list[CteInfo]:
     units: list[CteInfo] = []
@@ -57,7 +53,19 @@ def collect_ctes(records: list[QueryRecord]) -> list[CteInfo]:
 
 
 def _mask_literals(norm_sql: str) -> str:
-    return _NUMBER_LITERAL.sub("?", _STRING_LITERAL.sub("?", norm_sql))
+    try:
+        tokens = Dialect.get_or_raise("redshift").tokenize(norm_sql)
+    except Exception:  # noqa: BLE001 - never fall back to emitting unredacted SQL
+        return "?"
+    literal_types = {
+        TokenType.STRING, TokenType.NUMBER, TokenType.BIT_STRING,
+        TokenType.HEX_STRING, TokenType.BYTE_STRING, TokenType.NATIONAL_STRING,
+        TokenType.RAW_STRING, TokenType.HEREDOC_STRING, TokenType.UNICODE_STRING,
+    }
+    for token in reversed(tokens):
+        if token.token_type in literal_types:
+            norm_sql = norm_sql[:token.start] + "?" + norm_sql[token.end + 1:]
+    return norm_sql
 
 
 def _hash64(text: str) -> int:

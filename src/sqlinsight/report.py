@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+import re
 import sqlite3
 from collections import Counter
 from pathlib import Path
@@ -197,6 +198,16 @@ def _inject_legend(
         + "</div>"
     )
     html = path.read_text(encoding="utf-8")
+    # Pyvis includes Bootstrap CDN tags even in in_line mode; this graph uses
+    # neither its menus nor Bootstrap widgets.
+    html = re.sub(
+        r'<link\b[^>]*href="https://cdn\.jsdelivr\.net/npm/bootstrap@[^>]*>',
+        "", html,
+    )
+    html = re.sub(
+        r'<script\b[^>]*src="https://cdn\.jsdelivr\.net/npm/bootstrap@[^>]*>\s*</script>',
+        "", html,
+    )
     html = html.replace("</body>", legend + "\n</body>", 1)
     path.write_text(html, encoding="utf-8")
 

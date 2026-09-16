@@ -57,8 +57,9 @@ def refine(
     star_tables: set[str] | None = None,
 ) -> dict[str, int]:
     """Second pass: attribute ambiguous columns when the catalog points to
-    exactly one candidate table present in the same query. star_tables (tables
-    backed by a provided, trusted catalog) additionally get SELECT * expansion."""
+    exactly one candidate table present in the same scope, with no derived
+    sources. star_tables (backed by a provided, trusted catalog) additionally
+    get SELECT * expansion."""
     stats = {"catalog_resolved": 0, "still_ambiguous": 0}
     if statements is not None:
         by_key = {(s.file, s.stmt_index): s for s in statements}
@@ -80,7 +81,8 @@ def refine(
             if col.status != "ambiguous":
                 continue
             candidates = [
-                t for t in rec.tables if col.name.lower() in catalog.get(t, set())
+                t for t in sorted(col.catalog_candidates)
+                if col.name.lower() in catalog.get(t, set())
             ]
             if len(candidates) == 1:
                 col.table = candidates[0]

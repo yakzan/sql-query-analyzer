@@ -147,6 +147,14 @@ output-changing steps only after the step-1 snapshot harness exists.
 
 ## Smaller questions
 
+**Review corrections (2026-09-16):** catalog candidates are now retained per
+column scope, including in-place refinement; derived sources block confident
+attribution. Join evidence is restricted to explicit `JOIN ... ON` equalities
+(implicit WHERE joins remain outside coverage). Exact SQL normalization retains
+literal case, while sample redaction uses dialect-aware literal tokens. Generated graphs
+remove unused Bootstrap CDN tags rather than relying on Pyvis's `in_line` option
+alone. These correct existing contracts rather than add roadmap features.
+
 These three remain genuinely open (deliberately left out of `ROADMAP.md`;
 revisit after step 7's scale corpus provides real numbers).
 

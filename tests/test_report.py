@@ -1,4 +1,5 @@
 import networkx as nx
+from html.parser import HTMLParser
 
 from sqlinsight.models import QueryRecord
 from sqlinsight.report import write_report
@@ -70,5 +71,13 @@ def test_graph_html_escapes_script_terminators_and_is_offline(tmp_path):
 
     html = (tmp_path / "graph.html").read_text(encoding="utf-8")
     assert payload not in html
-    assert '<script src="http' not in html
-    assert '<link href="http' not in html
+    resources = []
+
+    class ResourceParser(HTMLParser):
+        def handle_starttag(self, tag, attrs):
+            attributes = dict(attrs)
+            if tag in {"script", "link"}:
+                resources.extend(attributes[a] for a in ("src", "href") if a in attributes)
+
+    ResourceParser().feed(html)
+    assert resources == []

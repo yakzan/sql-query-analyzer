@@ -9,6 +9,11 @@ wheels/
 # Virtual environments
 .venv
 
+# Local credentials (keep sanitized examples shareable)
+.env
+.env.*
+!.env.example
+
 # Generated analysis artifacts
 output/
 

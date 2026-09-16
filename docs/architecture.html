@@ -321,8 +321,10 @@ const STAGES = [
             <code>star_expanded</code> - only for provided-catalog tables, because the inferred
             catalog is incomplete by construction and expanding from it would overclaim.</li>
         <li><b>Catalog resolution</b> (second pass): ambiguous -> <code>catalog_resolved</code>
-            iff exactly one table in scope carries the column.</li>
-        <li><b>Joins:</b> every <code>a = b</code> between columns of different tables. If one
+            iff exactly one table in scope carries the column and no derived source could
+            also supply it. Candidates never cross independent query scopes.</li>
+        <li><b>Joins:</b> <code>a = b</code> between columns of different tables in explicit
+            <code>JOIN ... ON</code> predicates, not projections or WHERE comparisons. If one
             side is resolved and the other ambiguous, <b>partner inference</b> may fire (see
             What changed). Edges carry <code>inference: "" | "partner"</code>.</li>
         <li><b>Contexts:</b> join columns first, then nearest ancestor (AggFunc / GROUP BY /
@@ -413,7 +415,7 @@ columns = [(orders.amount, star_expanded), (orders.customer_id, star_expanded),
       <pre>(None: amount, <span class="c">ambiguous</span>) -> (orders.amount, <span class="c">catalog_resolved</span>)</pre>
       <p>If <code>refunds</code> also had <code>amount</code>, it stays ambiguous - unless a join
       partner excludes one candidate (extract stage, step 6).</p>
-      <p>On the bundled examples (inferred only): <code>catalog-resolved 2, still ambiguous 4</code>.</p>`,
+      <p>On the bundled examples (inferred only): <code>catalog-resolved 0, still ambiguous 6</code>.</p>`,
     changes: `
       <div class="ship-note"><b>Step 3 - the workaround became the fallback.</b> Schema inference
       was always a stand-in for not assuming a warehouse connection; anyone with a real corpus
@@ -493,7 +495,8 @@ columns = [(orders.amount, star_expanded), (orders.customer_id, star_expanded),
         <li><b>Fingerprint</b> each unit's literal-masked normalized SQL twice: the set of
             5-token shingles (rewards preserved structure) and the set of tokens (keeps recall on
             small units).</li>
-        <li><b>Exact fast path:</b> identical sha1 of normalized SQL -> union immediately.</li>
+        <li><b>Exact fast path:</b> identical sha1 of normalized SQL -> union immediately.
+            Literal case is preserved; literal masking uses dialect-aware SQL tokens.</li>
         <li><b>Candidates:</b> deterministic MinHash (128 fixed-seed permutations) over token sets,
             LSH-bucketed (32 bands x 4 rows, ~0.42 collision threshold). LSH only <i>prunes</i>;
             it never decides.</li>
@@ -615,7 +618,8 @@ masked:     ... where o.created_at > <span class="c">?</span>        (12 tokens,
             unreadable hairball), sorted by (-joins, a, b) and capped at
             <code>--graph-edges</code> (default 200) with a truncation note in the legend
             pointing at join_edges.csv. Dashed = partner-inferred. Node size = join degree,
-            color = cluster. <code>cdn_resources="in_line"</code>: works offline.</li>
+            color = cluster. <code>cdn_resources="in_line"</code> plus removal of unused
+            Bootstrap CDN tags: works offline.</li>
         <li><code>report.html</code>: Jinja with autoescape ON; headline metrics now include
             <b>statement kinds</b> and <b>catalog source</b>, so skipped DDL and inference basis
             are visible at a glance. Repeated-logic samples mask string and numeric literals.</li>

@@ -1,4 +1,5 @@
 import sqlglot
+import pytest
 
 from conftest import records_for
 
@@ -54,3 +55,20 @@ def test_refine_with_statements_rebuilds_join_edges_after_resolution():
     assert records[1].joins[0].canonical() == (
         "core.customers", "sales.orders", "customer_id", "order_id",
     )
+
+
+@pytest.mark.parametrize("rebuild", [False, True])
+@pytest.mark.parametrize("sql", [
+    "select mystery from inner_a a join inner_b b on a.id=b.id "
+    "union all select o.mystery from outer_t o",
+    "select mystery from outer_t o cross join (select mystery from inner_a) d",
+])
+def test_catalog_never_resolves_across_scopes_or_unknown_derived_sources(sql, rebuild):
+    stmt = ParsedStatement("q.sql", 0, PRIMARY_DIALECT, sqlglot.parse_one(sql, read=PRIMARY_DIALECT))
+    records = extract_all([stmt])
+    stats = catalog.refine(
+        records, {"outer_t": {"mystery"}}, [stmt] if rebuild else None,
+    )
+    assert stats == {"catalog_resolved": 0, "still_ambiguous": 1}
+    assert any(c.name == "mystery" and c.table is None and c.status == "ambiguous"
+               for c in records[0].columns)

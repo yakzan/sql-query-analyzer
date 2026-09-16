@@ -35,7 +35,10 @@ def _resolve_columns(
     expression: exp.Expression,
     catalog: dict[str, set[str]] | None = None,
     star_tables: set[str] | None = None,
-) -> tuple[dict[int, ColumnRef], set[str], list[ColumnRef]]:
+) -> tuple[
+    dict[int, ColumnRef], set[str], list[ColumnRef],
+    dict[int, tuple[frozenset[str], bool]],
+]:
     """Map each column node id to a resolved ColumnRef using scope analysis.
 
     Stars are only expanded for star_tables (backed by a provided catalog);
@@ -87,7 +90,10 @@ def _resolve_columns(
                     lone_table, col.name, "unqualified_resolved", "select"
                 )
             else:
-                resolution[id(col)] = ColumnRef(None, col.name, "ambiguous", "select")
+                resolution[id(col)] = ColumnRef(
+                    None, col.name, "ambiguous", "select",
+                    catalog_candidates=scope_tables if not has_derived else frozenset(),
+                )
 
         if catalog and star_tables:
             for t in _star_targets(scope.expression, table_sources):
@@ -139,6 +145,10 @@ def _extract_joins(
     joins: list[JoinEdge] = []
     join_col_ids: set[int] = set()
     for eq in expression.find_all(exp.EQ):
+        # Do not treat projected comparisons or nested query predicates as JOIN ON.
+        owner = eq.find_ancestor(exp.Join, exp.Select)
+        if not isinstance(owner, exp.Join):
+            continue
         left, right = eq.this, eq.expression
         if not (isinstance(left, exp.Column) and isinstance(right, exp.Column)):
             continue
@@ -169,14 +179,14 @@ def _extract_joins(
 
 def _apply_catalog_resolution(
     resolution: dict[int, ColumnRef],
-    real_tables: set[str],
     catalog: dict[str, set[str]],
 ) -> None:
     for ref in resolution.values():
         if ref.status != "ambiguous":
             continue
         candidates = [
-            t for t in sorted(real_tables) if ref.name.lower() in catalog.get(t, set())
+            t for t in sorted(ref.catalog_candidates)
+            if ref.name.lower() in catalog.get(t, set())
         ]
         if len(candidates) == 1:
             ref.table = candidates[0]
@@ -232,10 +242,7 @@ def _cte_tables(cte: exp.CTE, cte_names: set[str]) -> list[str]:
 
 
 def _normalize_sql(node: exp.Expression) -> str:
-    try:
-        return node.sql(dialect="redshift", normalize=True, comments=False).lower().strip()
-    except Exception:  # noqa: BLE001
-        return node.sql().lower().strip()
+    return node.sql(dialect="redshift", normalize=True, comments=False).strip()
 
 
 def _extract_ctes(
@@ -350,7 +357,7 @@ def extract_record(
             analyzed, catalog=catalog, star_tables=star_tables
         )
         if catalog is not None:
-            _apply_catalog_resolution(resolution, real_tables, catalog)
+            _apply_catalog_resolution(resolution, catalog)
         joins, join_col_ids = _extract_joins(
             analyzed, resolution, scope_meta, catalog=catalog
         )

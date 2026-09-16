@@ -62,6 +62,19 @@ def test_changed_literals_still_near_dupe():
     assert rows[0]["match_type"] == "near_dupe"
 
 
+def test_literal_case_is_preserved_in_exact_hashes():
+    records = records_for(CTE_NEAR_DUP, CTE_NEAR_DUP.replace("completed", "COMPLETED"))
+    assert records[0].ctes[0].exact_hash != records[1].ctes[0].exact_hash
+    rows = overlap.repeated_logic(records)
+    assert len(rows) == 1
+    assert rows[0]["match_type"] == "near_dupe"
+
+
+def test_masking_handles_escaped_strings_without_destroying_sql_structure():
+    sql = "SELECT E'prefix\\'secret', DATE_TRUNC('MONTH', created_at), 6.022e23 FROM orders"
+    assert overlap._mask_literals(sql) == "SELECT ?, DATE_TRUNC(?, created_at), ? FROM orders"
+
+
 def test_repeated_logic_sample_masks_literal_values():
     secret = "customer-secret-O''Reilly"
     query = CTE_NEAR_DUP.replace("completed", secret).replace(

@@ -1,5 +1,6 @@
 """Partner-informed join resolution: evidence-based, labeled, never silent."""
 import sqlglot
+import pytest
 
 from conftest import record_for
 from sqlinsight import cooccurrence
@@ -91,3 +92,15 @@ def test_inferred_only_pairs_reported():
     }
     edges = cooccurrence.join_edges(recs)
     assert edges[0][5] == "partner"
+
+
+@pytest.mark.parametrize("sql", [
+    "select a.x=b.x as same from ta a cross join tb b",
+    "select a.x from ta a cross join tb b where a.x=b.x",
+    "select a.x from ta a join tb b on exists "
+    "(select 1 from tc c cross join td d where c.x=d.x)",
+])
+def test_non_join_comparisons_do_not_create_edges(sql):
+    rec = record_for(sql)
+    assert rec.joins == []
+    assert all(c.context != "join" and c.status != "join_inferred" for c in rec.columns)

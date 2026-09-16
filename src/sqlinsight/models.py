@@ -10,6 +10,7 @@ class ColumnRef:
     name: str
     status: str  # resolved | unqualified_resolved | derived | ambiguous
     context: str  # select | join | filter | group | aggregate
+    catalog_candidates: frozenset[str] = frozenset()
 
 
 @dataclass

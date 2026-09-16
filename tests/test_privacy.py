@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import pytest
+
 from sqlinsight import cli
 
 
-def test_artifacts_do_not_persist_literals_or_absolute_source_paths(tmp_path):
+@pytest.mark.parametrize("literal", [
+    "'{secret}'", "E'prefix\\'{secret}'", "$$prefix'{secret}$$",
+])
+def test_artifacts_do_not_persist_literals_or_absolute_source_paths(tmp_path, literal):
     secret = "literal-secret-7f3a9b"
     corpus = tmp_path / "private" / "corpus"
     corpus.mkdir(parents=True)
@@ -11,7 +16,7 @@ def test_artifacts_do_not_persist_literals_or_absolute_source_paths(tmp_path):
     with sensitive as (
         select customer_id, sum(amount) as total
         from sales.orders
-        where access_token = '{secret}'
+        where access_token = {literal.format(secret=secret)}
         group by customer_id
     )
     select * from sensitive

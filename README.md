@@ -123,7 +123,14 @@ size, cluster shape, and determinism.
 Analysis is local and generated HTML has no runtime network dependency. Output
 paths are portable corpus-relative paths; parser errors omit SQL excerpts; and
 the SQL samples in `repeated_logic.csv` / `report.html` replace string and
-numeric literals with `?`.
+numeric literals with `?` using dialect-aware SQL tokens, including escaped strings.
+The graph embeds its JavaScript/CSS and removes Pyvis's unused Bootstrap CDN
+resources.
+
+No warehouse credentials are needed: inputs are local SQL files and an optional
+schema JSON file. Keep credentials out of the repository; `.env` and `.env.*`
+are ignored (except sanitized `.env.example` files). This does not protect
+secrets already tracked by Git or placed in other files.
 
 Artifacts still contain structural metadata—including file, schema, table,
 and column names—because that is the product's purpose. Treat the output
@@ -144,6 +151,13 @@ structure.
 
 ## Known limitations
 
+- Join edges represent explicit `JOIN ... ON` column equalities, not projected
+  comparisons or implicit joins in `WHERE`.
+- Catalog attribution is scope-local; an unqualified column stays ambiguous
+  when a derived source could also supply it.
+- Exact overlap preserves literal case; changing `'ABC'` to `'abc'` is a
+  near-duplicate, not an exact duplicate. Normalization changes regenerate
+  overlap hashes, so keys are not stable identifiers across versions.
 - `SELECT *` columns stay opaque unless a real schema catalog is provided via `--catalog`.
 - Inline subqueries under ~25 tokens are not fingerprinted for overlap (deliberate noise filter).
 - Only static dbt `ref()` / `source()` calls are preprocessed. Arbitrary Jinja,
